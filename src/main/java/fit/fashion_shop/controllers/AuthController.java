@@ -10,8 +10,10 @@ package fit.fashion_shop.controllers;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
+import fit.fashion_shop.dtos.requests.LoginRequest;
 import fit.fashion_shop.dtos.requests.RegisterRequest;
 import fit.fashion_shop.dtos.requests.VerifyOtpRequest;
+import fit.fashion_shop.dtos.responses.LoginResponse;
 import fit.fashion_shop.services.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -53,6 +55,21 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Xác thực tài khoản thành công. Bạn có thể đăng nhập.",
+                servletRequest.getRequestURI()
+        ));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest servletRequest) {
+
+        LoginResponse response = authService.login(request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Đăng nhập thành công",
+                response,
                 servletRequest.getRequestURI()
         ));
     }

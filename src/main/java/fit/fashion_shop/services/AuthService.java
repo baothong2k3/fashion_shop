@@ -9,9 +9,12 @@ package fit.fashion_shop.services;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.dtos.requests.LoginRequest;
 import fit.fashion_shop.dtos.requests.RegisterRequest;
+import fit.fashion_shop.dtos.responses.LoginResponse;
 
 public interface AuthService {
     void register(RegisterRequest request);
     void verifyRegistration(String email, String code);
+    LoginResponse login(LoginRequest request);
 }

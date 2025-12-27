@@ -23,6 +23,28 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidCredentials(
+            InvalidCredentialsException ex, HttpServletRequest request) {
+        ApiResponse<Void> response = ApiResponse.error(
+                HttpStatus.UNAUTHORIZED.value(), // 401
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(AccountNotEnabledException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccountNotEnabled(
+            AccountNotEnabledException ex, HttpServletRequest request) {
+        ApiResponse<Void> response = ApiResponse.error(
+                HttpStatus.FORBIDDEN.value(), // 403
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
+
     // Bắt lỗi Validation (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(
