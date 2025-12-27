@@ -1,0 +1,5 @@
+package fit.fashion_shop.enums;
+
+public enum OtpType {
+    REGISTER, FORGOT_PASSWORD
+}
