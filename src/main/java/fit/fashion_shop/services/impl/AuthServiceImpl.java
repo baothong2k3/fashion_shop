@@ -85,7 +85,11 @@ public class AuthServiceImpl implements AuthService {
 
         // 2. Kiểm tra tài khoản đã được kích hoạt (Verify OTP) chưa
         if (!user.isEnabled()) {
-            throw new AccountNotEnabledException("Tài khoản chưa được kích hoạt. Vui lòng xác thực OTP.");
+            // Tự động gửi lại mã OTP
+            String otp = otpService.generateOtp(user.getEmail(), OtpType.REGISTER);
+            mailService.sendOtpMail(user.getEmail(), otp);
+
+            throw new AccountNotEnabledException("Tài khoản chưa được kích hoạt. Một mã OTP mới đã được gửi đến email của bạn để kích hoạt.");
         }
 
         // 3. Kiểm tra mật khẩu
