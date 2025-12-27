@@ -19,4 +19,7 @@ public interface OtpRepository extends JpaRepository<Otp, Long> {
     Optional<Otp> findByEmailAndOtpCodeAndType(String email, String otpCode, OtpType type);
 
     void deleteByEmailAndType(String email, OtpType type);
+
+    // Xóa OTP cụ thể sau khi dùng xong
+    void deleteByEmailAndOtpCodeAndType(String email, String otpCode, OtpType type);
 }

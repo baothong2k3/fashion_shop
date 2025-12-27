@@ -9,8 +9,10 @@ package fit.fashion_shop.services.impl;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.dtos.requests.ForgotPasswordRequest;
 import fit.fashion_shop.dtos.requests.LoginRequest;
 import fit.fashion_shop.dtos.requests.RegisterRequest;
+import fit.fashion_shop.dtos.requests.ResetPasswordRequest;
 import fit.fashion_shop.dtos.responses.LoginResponse;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.enums.OtpType;
@@ -25,6 +27,7 @@ import fit.fashion_shop.services.OtpService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -57,15 +60,21 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void verifyRegistration(String email, String code) {
+
+        // 1. Kiểm tra OTP
         if (!otpService.validateOtp(email, code, OtpType.REGISTER)) {
             throw new RuntimeException("Mã OTP không hợp lệ hoặc đã hết hạn");
         }
 
+        // 2. Kích hoạt tài khoản
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         user.setEnabled(true);
         userRepository.save(user);
+
+        // 3. Xóa OTP sau khi dùng xong để bảo mật
+        otpService.deleteOtp(email, code, OtpType.REGISTER);
     }
 
     @Override
@@ -95,5 +104,38 @@ public class AuthServiceImpl implements AuthService {
                 user.getFullName(),
                 user.getRole()
         );
+    }
+
+    @Override
+    public void forgotPassword(ForgotPasswordRequest request) {
+        // 1. Kiểm tra email có tồn tại không
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new RuntimeException("Email không tồn tại trong hệ thống"));
+
+        // 2. Tạo OTP với type FORGOT_PASSWORD (đã có trong Enum OtpType)
+        String otp = otpService.generateOtp(user.getEmail(), OtpType.FORGOT_PASSWORD);
+
+        // 3. Gửi mail
+        mailService.sendForgotPasswordMail(user.getEmail(), otp);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        // 1. Xác thực OTP
+        if (!otpService.validateOtp(request.email(), request.otpCode(), OtpType.FORGOT_PASSWORD)) {
+            throw new RuntimeException("Mã OTP không hợp lệ hoặc đã hết hạn");
+        }
+
+        // 2. Tìm User
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // 3. Cập nhật mật khẩu mới (mã hóa bằng BCrypt)
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+
+        // 4. Xóa OTP sau khi đổi mật khẩu thành công
+        otpService.deleteOtp(request.email(), request.otpCode(), OtpType.FORGOT_PASSWORD);
     }
 }

@@ -10,9 +10,7 @@ package fit.fashion_shop.controllers;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
-import fit.fashion_shop.dtos.requests.LoginRequest;
-import fit.fashion_shop.dtos.requests.RegisterRequest;
-import fit.fashion_shop.dtos.requests.VerifyOtpRequest;
+import fit.fashion_shop.dtos.requests.*;
 import fit.fashion_shop.dtos.responses.LoginResponse;
 import fit.fashion_shop.services.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -70,6 +68,34 @@ public class AuthController {
                 HttpStatus.OK.value(),
                 "Đăng nhập thành công",
                 response,
+                servletRequest.getRequestURI()
+        ));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest servletRequest) {
+
+        authService.forgotPassword(request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Mã OTP đặt lại mật khẩu đã được gửi vào email của bạn.",
+                servletRequest.getRequestURI()
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletRequest servletRequest) {
+
+        authService.resetPassword(request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.",
                 servletRequest.getRequestURI()
         ));
     }

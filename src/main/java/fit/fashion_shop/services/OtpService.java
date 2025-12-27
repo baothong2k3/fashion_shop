@@ -45,4 +45,12 @@ public class OtpService {
                 .filter(otp -> otp.getExpiryTime().isAfter(LocalDateTime.now()))
                 .isPresent();
     }
+
+    /**
+     * Xóa OTP sau khi đã xác thực thành công
+     */
+    @Transactional
+    public void deleteOtp(String email, String code, OtpType type) {
+        otpRepository.deleteByEmailAndOtpCodeAndType(email, code, type);
+    }
 }

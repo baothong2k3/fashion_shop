@@ -67,4 +67,42 @@ public class MailService {
         </div>
         """.formatted(otp);
     }
+
+    public void sendForgotPasswordMail(String to, String otp) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("Đặt lại mật khẩu Fashion Shop");
+
+            String htmlContent = buildResetPasswordEmailTemplate(otp);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            throw new RuntimeException("Lỗi khi gửi mail: " + e.getMessage());
+        }
+    }
+
+    private String buildResetPasswordEmailTemplate(String otp) {
+        return """
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
+        <div style="background-color: #000; padding: 20px; text-align: center;">
+            <h1 style="color: #fff; margin: 0; letter-spacing: 5px;">Fashion Shop</h1>
+        </div>
+        <div style="padding: 40px 20px; text-align: center; color: #333;">
+            <h2>Yêu Cầu Đặt Lại Mật Khẩu</h2>
+            <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng sử dụng mã OTP dưới đây:</p>
+            <div style="margin: 30px 0;">
+                <span style="font-size: 32px; font-weight: bold; letter-spacing: 10px; padding: 10px 20px; border: 2px dashed #000; background-color: #f9f9f9;">
+                    %s
+                </span>
+            </div>
+            <p style="font-size: 14px; color: #777;">Nếu bạn không yêu cầu điều này, vui lòng bỏ qua email này.</p>
+        </div>
+    </div>
+    """.formatted(otp);
+    }
 }
