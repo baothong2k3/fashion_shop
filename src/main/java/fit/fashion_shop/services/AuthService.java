@@ -9,10 +9,7 @@ package fit.fashion_shop.services;/*
  * @version: 1.0
  */
 
-import fit.fashion_shop.dtos.requests.ForgotPasswordRequest;
-import fit.fashion_shop.dtos.requests.LoginRequest;
-import fit.fashion_shop.dtos.requests.RegisterRequest;
-import fit.fashion_shop.dtos.requests.ResetPasswordRequest;
+import fit.fashion_shop.dtos.requests.*;
 import fit.fashion_shop.dtos.responses.LoginResponse;
 
 public interface AuthService {
@@ -21,4 +18,5 @@ public interface AuthService {
     LoginResponse login(LoginRequest request);
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
+    void resendOtp(ResendOtpRequest request);
 }

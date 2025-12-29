@@ -99,4 +99,18 @@ public class AuthController {
                 servletRequest.getRequestURI()
         ));
     }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<Void>> resendOtp(
+            @Valid @RequestBody ResendOtpRequest request,
+            HttpServletRequest servletRequest) {
+
+        authService.resendOtp(request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Mã OTP mới đã được gửi vào email của bạn.",
+                servletRequest.getRequestURI()
+        ));
+    }
 }

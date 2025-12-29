@@ -9,10 +9,7 @@ package fit.fashion_shop.services.impl;/*
  * @version: 1.0
  */
 
-import fit.fashion_shop.dtos.requests.ForgotPasswordRequest;
-import fit.fashion_shop.dtos.requests.LoginRequest;
-import fit.fashion_shop.dtos.requests.RegisterRequest;
-import fit.fashion_shop.dtos.requests.ResetPasswordRequest;
+import fit.fashion_shop.dtos.requests.*;
 import fit.fashion_shop.dtos.responses.LoginResponse;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.enums.OtpType;
@@ -141,5 +138,27 @@ public class AuthServiceImpl implements AuthService {
 
         // 4. Xóa OTP sau khi đổi mật khẩu thành công
         otpService.deleteOtp(request.email(), request.otpCode(), OtpType.FORGOT_PASSWORD);
+    }
+
+    @Override
+    public void resendOtp(ResendOtpRequest request) {
+        // 1. Kiểm tra User tồn tại
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new RuntimeException("Email không tồn tại trong hệ thống"));
+
+        // 2. Logic bổ sung tùy theo loại OTP
+        if (request.type() == OtpType.REGISTER && user.isEnabled()) {
+            throw new RuntimeException("Tài khoản này đã được kích hoạt trước đó.");
+        }
+
+        // 3. Tạo mã OTP mới (tự động xóa mã cũ nếu có)
+        String newOtp = otpService.generateOtp(user.getEmail(), request.type());
+
+        // 4. Gửi Mail tương ứng với loại OTP
+        if (request.type() == OtpType.REGISTER) {
+            mailService.sendOtpMail(user.getEmail(), newOtp);
+        } else if (request.type() == OtpType.FORGOT_PASSWORD) {
+            mailService.sendForgotPasswordMail(user.getEmail(), newOtp);
+        }
     }
 }
