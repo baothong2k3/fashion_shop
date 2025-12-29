@@ -10,6 +10,7 @@ package fit.fashion_shop.services;/*
  */
 
 import fit.fashion_shop.entities.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @Service
 public class JwtService {
@@ -58,5 +60,50 @@ public class JwtService {
     private SecretKey getSignInKey() {
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public String extractEmail(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
+
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSignInKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    /**
+     * Kiểm tra token có hợp lệ về chữ ký và thời hạn hay không (Dùng cho Refresh Token API)
+     */
+    public boolean isTokenValid(String token) {
+        try {
+            extractAllClaims(token); // Nếu parse thành công nghĩa là chữ ký đúng và chưa hết hạn
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Kiểm tra token có hợp lệ và khớp với email người dùng hay không (Dùng cho Filter)
+     */
+    public boolean isTokenValid(String token, String userEmail) {
+        try {
+            final String email = extractEmail(token);
+            return (email.equals(userEmail)) && !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isTokenExpired(String token) {
+        return extractClaim(token, Claims::getExpiration).before(new Date());
     }
 }

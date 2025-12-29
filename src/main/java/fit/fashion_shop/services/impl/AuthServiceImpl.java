@@ -16,6 +16,7 @@ import fit.fashion_shop.enums.OtpType;
 import fit.fashion_shop.enums.Role;
 import fit.fashion_shop.exceptions.AccountNotEnabledException;
 import fit.fashion_shop.exceptions.InvalidCredentialsException;
+import fit.fashion_shop.exceptions.RefreshTokenException;
 import fit.fashion_shop.repositories.UserRepository;
 import fit.fashion_shop.services.AuthService;
 import fit.fashion_shop.services.JwtService;
@@ -160,5 +161,39 @@ public class AuthServiceImpl implements AuthService {
         } else if (request.type() == OtpType.FORGOT_PASSWORD) {
             mailService.sendForgotPasswordMail(user.getEmail(), newOtp);
         }
+    }
+
+    @Override
+    public LoginResponse refreshToken(RefreshTokenRequest request) {
+        String refreshToken = request.refreshToken();
+
+        // 1. Kiểm tra tính hợp lệ và thời hạn của token
+        if (!jwtService.isTokenValid(refreshToken)) {
+            throw new RefreshTokenException("Refresh token không hợp lệ hoặc đã hết hạn");
+        }
+
+        // 2. Trích xuất email từ token
+        String email = jwtService.extractEmail(refreshToken);
+
+        // 3. Tìm user trong database
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // 4. Kiểm tra tài khoản còn hoạt động không
+        if (!user.isEnabled()) {
+            throw new AccountNotEnabledException("Tài khoản đã bị khóa hoặc chưa kích hoạt");
+        }
+
+        // 5. Tạo bộ đôi Token mới (Rotation)
+        String newAccessToken = jwtService.generateAccessToken(user);
+        String newRefreshToken = jwtService.generateRefreshToken(user);
+
+        return new LoginResponse(
+                newAccessToken,
+                newRefreshToken,
+                user.getEmail(),
+                user.getFullName(),
+                user.getRole()
+        );
     }
 }

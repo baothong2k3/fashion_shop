@@ -113,4 +113,19 @@ public class AuthController {
                 servletRequest.getRequestURI()
         ));
     }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiResponse<LoginResponse>> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request,
+            HttpServletRequest servletRequest) {
+
+        LoginResponse response = authService.refreshToken(request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Làm mới token thành công",
+                response,
+                servletRequest.getRequestURI()
+        ));
+    }
 }

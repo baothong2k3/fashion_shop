@@ -10,7 +10,11 @@ package fit.fashion_shop.exceptions;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -84,5 +89,51 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // 2. Xử lý lỗi Refresh Token (401 Unauthorized)
+    @ExceptionHandler(RefreshTokenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRefreshTokenException(
+            RefreshTokenException ex, HttpServletRequest request) {
+        ApiResponse<Void> response = ApiResponse.error(
+                HttpStatus.UNAUTHORIZED.value(), // Trả về 401
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * Xử lý lỗi Token hết hạn (ExpiredJwtException)
+     */
+    @ExceptionHandler(ExpiredJwtException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExpiredJwtException(
+            ExpiredJwtException ex, HttpServletRequest request) {
+
+        log.warn("JWT Expired: {}", ex.getMessage());
+
+        ApiResponse<Void> response = ApiResponse.error(
+                HttpStatus.UNAUTHORIZED.value(), // 401
+                "Token đã hết hạn. Vui lòng làm mới token.",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * Xử lý các lỗi JWT khác (JwtException) như: MalformedJwtException, SignatureException...
+     */
+    @ExceptionHandler({JwtException.class, SignatureException.class})
+    public ResponseEntity<ApiResponse<Void>> handleJwtException(
+            Exception ex, HttpServletRequest request) {
+
+        log.error("JWT Error: {}", ex.getMessage());
+
+        ApiResponse<Void> response = ApiResponse.error(
+                HttpStatus.UNAUTHORIZED.value(), // 401
+                "Token không hợp lệ hoặc không có quyền truy cập.",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
 }
