@@ -139,25 +139,47 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void updateAddress(Long userId, Long addressId, AddressRequest request) {
-        // 1. Tìm địa chỉ và kiểm tra quyền sở hữu
-        Address address = addressRepository.findByIdAndUserId(addressId, userId)
+        // 1. Lấy tất cả địa chỉ của người dùng
+        List<Address> allAddresses = addressRepository.findByUserId(userId);
+
+        Address addressToUpdate = allAddresses.stream()
+                .filter(a -> a.getId().equals(addressId))
+                .findFirst()
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ hoặc bạn không có quyền chỉnh sửa"));
 
-        // 2. Nếu đặt làm mặc định, reset các địa chỉ khác của người dùng
-        if (request.defaultAddress()) {
+        boolean newDefaultStatus = request.defaultAddress();
+
+        // Ràng buộc 1: Nếu là địa chỉ duy nhất, luôn buộc phải là mặc định
+        if (allAddresses.size() == 1) {
+            newDefaultStatus = true;
+        }
+        // Ràng buộc 2: Nếu địa chỉ đang sửa là mặc định và người dùng muốn bỏ chọn mặc định
+        else if (addressToUpdate.isDefaultAddress() && !request.defaultAddress()) {
+            // Tìm một địa chỉ khác (không phải địa chỉ đang sửa) để gán làm mặc định thay thế
+            Address successor = allAddresses.stream()
+                    .filter(a -> !a.getId().equals(addressId))
+                    .findFirst()
+                    .orElseThrow(() -> new RuntimeException("Lỗi hệ thống: Không tìm thấy địa chỉ thay thế"));
+
+            successor.setDefaultAddress(true);
+            addressRepository.save(successor);
+        }
+        // Ràng buộc 3: Nếu người dùng chọn địa chỉ này làm mặc định mới
+        else if (newDefaultStatus) {
+            // Reset các địa chỉ khác về false trước khi set cái này thành true
             addressRepository.resetDefaultAddress(userId);
         }
 
-        // 3. Cập nhật thông tin mới
-        address.setRecipientName(request.recipientName());
-        address.setPhoneNumber(request.phoneNumber());
-        address.setStreet(request.street());
-        address.setCity(request.city());
-        address.setDistrict(request.district());
-        address.setWard(request.ward());
-        address.setDefaultAddress(request.defaultAddress());
+        // 2. Cập nhật các thông tin từ request vào Entity
+        addressToUpdate.setRecipientName(request.recipientName());
+        addressToUpdate.setPhoneNumber(request.phoneNumber());
+        addressToUpdate.setStreet(request.street());
+        addressToUpdate.setCity(request.city());
+        addressToUpdate.setDistrict(request.district());
+        addressToUpdate.setWard(request.ward());
+        addressToUpdate.setDefaultAddress(newDefaultStatus);
 
-        addressRepository.save(address);
+        addressRepository.save(addressToUpdate);
     }
 
     @Override
@@ -201,7 +223,7 @@ public class UserServiceImpl implements UserService {
         }
 
         // Lấy danh sách địa chỉ và map sang AddressResponse
-        return addressRepository.findByUserIdOrderByDefaultAddressDesc(userId)
+        return addressRepository.findByUserIdOrderByDefaultAddressDescIdDesc(userId)
                 .stream()
                 .map(AddressResponse::fromAddress)
                 .toList();
