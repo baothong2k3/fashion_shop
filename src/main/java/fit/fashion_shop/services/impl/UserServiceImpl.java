@@ -25,6 +25,14 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
 
     @Override
+    public UserResponse getProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        return UserResponse.fromUser(user);
+    }
+
+    @Override
     @Transactional
     public UserResponse updateProfile(Long userId, UpdateProfileRequest request) {
         // 1. Load lại user từ DB để đảm bảo dữ liệu mới nhất (Entity Managed State)

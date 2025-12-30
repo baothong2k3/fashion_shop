@@ -30,6 +30,26 @@ public class UserController {
 
     private final UserService userService;
 
+    @GetMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserResponse>> getProfile(
+            @AuthenticationPrincipal User authUser,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        UserResponse userResponse = userService.getProfile(authUser.getId());
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Lấy thông tin cá nhân thành công",
+                userResponse,
+                httpReq.getRequestURI()
+        ));
+    }
+
     @PutMapping("/profile")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
