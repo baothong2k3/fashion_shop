@@ -188,16 +188,16 @@ public class UserServiceImpl implements UserService {
         // 1. Lấy tất cả địa chỉ của người dùng để kiểm tra các ràng buộc
         List<Address> userAddresses = addressRepository.findByUserId(userId);
 
-        // 2. Ràng buộc: Nếu chỉ có 1 địa chỉ duy nhất thì không cho phép xóa
-        if (userAddresses.size() <= 1) {
-            throw new RuntimeException("Không thể xóa địa chỉ duy nhất. Bạn phải có ít nhất một địa chỉ giao hàng.");
-        }
-
-        // 3. Tìm địa chỉ cần xóa trong danh sách (để đảm bảo quyền sở hữu)
+        // 2. Tìm địa chỉ cần xóa trong danh sách (để đảm bảo quyền sở hữu)
         Address addressToDelete = userAddresses.stream()
                 .filter(a -> a.getId().equals(addressId))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ hoặc bạn không có quyền xóa địa chỉ này"));
+
+        // 3. Ràng buộc: Nếu chỉ có 1 địa chỉ duy nhất thì không cho phép xóa
+        if (userAddresses.size() == 1) {
+            throw new RuntimeException("Không thể xóa địa chỉ duy nhất. Bạn phải có ít nhất một địa chỉ giao hàng.");
+        }
 
         // 4. Nếu địa chỉ cần xóa là địa chỉ mặc định, hãy chọn một địa chỉ khác làm mặc định mới
         if (addressToDelete.isDefaultAddress()) {
