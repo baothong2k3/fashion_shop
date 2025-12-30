@@ -9,12 +9,14 @@ package fit.fashion_shop.services.impl;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.repositories.UserRepository;
 import fit.fashion_shop.services.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserResponse getProfile(Long userId) {
@@ -72,5 +75,32 @@ public class UserServiceImpl implements UserService {
         User updatedUser = userRepository.save(user);
 
         return UserResponse.fromUser(updatedUser);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        // 1. Tìm user
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // 2. Kiểm tra mật khẩu cũ
+        if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
+            throw new RuntimeException("Mật khẩu cũ không chính xác");
+        }
+
+        // 3. Kiểm tra mật khẩu mới và xác nhận mật khẩu
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new RuntimeException("Mật khẩu xác nhận không khớp");
+        }
+
+        // Kiểm tra mật khẩu mới không được trùng mật khẩu cũ
+        if (request.newPassword().equals(request.oldPassword())) {
+            throw new RuntimeException("Mật khẩu mới không được trùng với mật khẩu cũ");
+        }
+
+        // 4. Mã hóa và cập nhật mật khẩu mới
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
     }
 }

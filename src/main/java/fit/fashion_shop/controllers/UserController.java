@@ -10,6 +10,7 @@ package fit.fashion_shop.controllers;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
+import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.User;
@@ -68,6 +69,26 @@ public class UserController {
                 HttpStatus.OK.value(),
                 "Cập nhật thông tin thành công",
                 updatedUser,
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @PutMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal User authUser,
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        userService.changePassword(authUser.getId(), request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Đổi mật khẩu thành công",
                 httpReq.getRequestURI()
         ));
     }
