@@ -113,4 +113,25 @@ public class UserController {
                 httpReq.getRequestURI()
         ));
     }
+
+    @PutMapping("/addresses/{addressId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> updateAddress(
+            @AuthenticationPrincipal User authUser,
+            @PathVariable Long addressId,
+            @Valid @RequestBody AddressRequest request,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        userService.updateAddress(authUser.getId(), addressId, request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Cập nhật địa chỉ thành công",
+                httpReq.getRequestURI()
+        ));
+    }
 }

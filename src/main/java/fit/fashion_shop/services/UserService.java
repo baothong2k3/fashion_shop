@@ -19,4 +19,5 @@ public interface UserService {
     UserResponse updateProfile(Long userId, UpdateProfileRequest request);
     void changePassword(Long userId, ChangePasswordRequest request);
     void addAddress(Long userId, AddressRequest request);
+    void updateAddress(Long userId, Long addressId, AddressRequest request);
 }

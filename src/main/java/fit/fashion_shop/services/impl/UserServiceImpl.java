@@ -132,4 +132,28 @@ public class UserServiceImpl implements UserService {
 
         addressRepository.save(address);
     }
+
+    @Override
+    @Transactional
+    public void updateAddress(Long userId, Long addressId, AddressRequest request) {
+        // 1. Tìm địa chỉ và kiểm tra quyền sở hữu
+        Address address = addressRepository.findByIdAndUserId(addressId, userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ hoặc bạn không có quyền chỉnh sửa"));
+
+        // 2. Nếu đặt làm mặc định, reset các địa chỉ khác của người dùng
+        if (request.isDefault()) {
+            addressRepository.resetDefaultAddress(userId);
+        }
+
+        // 3. Cập nhật thông tin mới
+        address.setRecipientName(request.recipientName());
+        address.setPhoneNumber(request.phoneNumber());
+        address.setStreet(request.street());
+        address.setCity(request.city());
+        address.setDistrict(request.district());
+        address.setWard(request.ward());
+        address.setDefault(request.isDefault());
+
+        addressRepository.save(address);
+    }
 }
