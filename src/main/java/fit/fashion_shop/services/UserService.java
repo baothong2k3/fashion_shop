@@ -1,0 +1,17 @@
+/*
+ * @ (#) UserService.java    1.0    30/12/2025
+ * Copyright (c) 2025 IUH. All rights reserved.
+ */
+package fit.fashion_shop.services;/*
+ * @description:
+ * @author: Bao Thong
+ * @date: 30/12/2025
+ * @version: 1.0
+ */
+
+import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
+import fit.fashion_shop.dtos.responses.UserResponse;
+
+public interface UserService {
+    UserResponse updateProfile(Long userId, UpdateProfileRequest request);
+}
