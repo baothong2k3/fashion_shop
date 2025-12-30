@@ -20,4 +20,5 @@ public interface UserService {
     void changePassword(Long userId, ChangePasswordRequest request);
     void addAddress(Long userId, AddressRequest request);
     void updateAddress(Long userId, Long addressId, AddressRequest request);
+    void deleteAddress(Long userId, Long addressId);
 }

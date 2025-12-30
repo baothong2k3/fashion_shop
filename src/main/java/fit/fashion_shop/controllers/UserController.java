@@ -134,4 +134,24 @@ public class UserController {
                 httpReq.getRequestURI()
         ));
     }
+
+    @DeleteMapping("/addresses/{addressId}")
+    @PreAuthorize("isAuthenticated()") // Yêu cầu đăng nhập
+    public ResponseEntity<ApiResponse<Void>> deleteAddress(
+            @AuthenticationPrincipal User authUser, // Lấy User từ Token
+            @PathVariable Long addressId,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        userService.deleteAddress(authUser.getId(), addressId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Xóa địa chỉ thành công",
+                httpReq.getRequestURI()
+        ));
+    }
 }
