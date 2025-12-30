@@ -14,7 +14,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "cart_item_options")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -15,7 +15,8 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "product_attribute_options")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -15,7 +15,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "product_attributes")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

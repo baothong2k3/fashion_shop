@@ -14,7 +14,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "product_variants")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

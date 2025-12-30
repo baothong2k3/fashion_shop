@@ -11,10 +11,7 @@ package fit.fashion_shop.entities;/*
 
 import fit.fashion_shop.enums.Gender;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import fit.fashion_shop.enums.Role;
 
 import java.time.LocalDate;
@@ -23,7 +20,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
