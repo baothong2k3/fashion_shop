@@ -13,6 +13,7 @@ import fit.fashion_shop.dtos.ApiResponse;
 import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
+import fit.fashion_shop.dtos.responses.AddressResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.services.UserService;
@@ -24,6 +25,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -151,6 +154,26 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Xóa địa chỉ thành công",
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @GetMapping("/addresses")
+    @PreAuthorize("isAuthenticated()") // Yêu cầu người dùng đăng nhập
+    public ResponseEntity<ApiResponse<List<AddressResponse>>> getAddresses(
+            @AuthenticationPrincipal User authUser, // Lấy thông tin user từ JWT
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<AddressResponse> addresses = userService.getUserAddresses(authUser.getId());
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Lấy danh sách địa chỉ thành công",
+                addresses,
                 httpReq.getRequestURI()
         ));
     }

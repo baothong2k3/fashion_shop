@@ -12,7 +12,10 @@ package fit.fashion_shop.services;/*
 import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
+import fit.fashion_shop.dtos.responses.AddressResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
+
+import java.util.List;
 
 public interface UserService {
     UserResponse getProfile(Long userId);
@@ -21,4 +24,5 @@ public interface UserService {
     void addAddress(Long userId, AddressRequest request);
     void updateAddress(Long userId, Long addressId, AddressRequest request);
     void deleteAddress(Long userId, Long addressId);
+    List<AddressResponse> getUserAddresses(Long userId);
 }

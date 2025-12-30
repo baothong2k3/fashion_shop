@@ -12,6 +12,7 @@ package fit.fashion_shop.services.impl;/*
 import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
+import fit.fashion_shop.dtos.responses.AddressResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.Address;
 import fit.fashion_shop.entities.User;
@@ -117,7 +118,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         // Nếu địa chỉ mới là mặc định, reset các địa chỉ cũ của user này
-        if (request.isDefault()) {
+        if (request.defaultAddress()) {
             addressRepository.resetDefaultAddress(userId);
         }
 
@@ -128,7 +129,7 @@ public class UserServiceImpl implements UserService {
                 .city(request.city())
                 .district(request.district())
                 .ward(request.ward())
-                .isDefault(request.isDefault())
+                .defaultAddress(request.defaultAddress())
                 .user(user)
                 .build();
 
@@ -143,7 +144,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ hoặc bạn không có quyền chỉnh sửa"));
 
         // 2. Nếu đặt làm mặc định, reset các địa chỉ khác của người dùng
-        if (request.isDefault()) {
+        if (request.defaultAddress()) {
             addressRepository.resetDefaultAddress(userId);
         }
 
@@ -154,7 +155,7 @@ public class UserServiceImpl implements UserService {
         address.setCity(request.city());
         address.setDistrict(request.district());
         address.setWard(request.ward());
-        address.setDefault(request.isDefault());
+        address.setDefaultAddress(request.defaultAddress());
 
         addressRepository.save(address);
     }
@@ -177,18 +178,32 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ hoặc bạn không có quyền xóa địa chỉ này"));
 
         // 4. Nếu địa chỉ cần xóa là địa chỉ mặc định, hãy chọn một địa chỉ khác làm mặc định mới
-        if (addressToDelete.isDefault()) {
+        if (addressToDelete.isDefaultAddress()) {
             // Tìm địa chỉ đầu tiên không phải là địa chỉ sắp xóa
             Address newDefaultAddress = userAddresses.stream()
                     .filter(a -> !a.getId().equals(addressId))
                     .findFirst()
                     .orElseThrow(() -> new RuntimeException("Lỗi hệ thống: Không tìm thấy địa chỉ thay thế"));
 
-            newDefaultAddress.setDefault(true);
+            newDefaultAddress.setDefaultAddress(true);
             addressRepository.save(newDefaultAddress);
         }
 
         // 5. Thực hiện xóa địa chỉ
         addressRepository.delete(addressToDelete);
+    }
+
+    @Override
+    public List<AddressResponse> getUserAddresses(Long userId) {
+        // Kiểm tra user tồn tại
+        if (!userRepository.existsById(userId)) {
+            throw new RuntimeException("Không tìm thấy người dùng");
+        }
+
+        // Lấy danh sách địa chỉ và map sang AddressResponse
+        return addressRepository.findByUserIdOrderByDefaultAddressDesc(userId)
+                .stream()
+                .map(AddressResponse::fromAddress)
+                .toList();
     }
 }

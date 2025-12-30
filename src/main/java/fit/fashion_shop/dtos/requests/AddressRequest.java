@@ -32,5 +32,5 @@ public record AddressRequest(
         @NotBlank(message = "Phường/Xã không được để trống")
         String ward,
 
-        boolean isDefault
+        boolean defaultAddress
 ) {}
