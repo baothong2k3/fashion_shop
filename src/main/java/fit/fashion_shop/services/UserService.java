@@ -9,6 +9,7 @@ package fit.fashion_shop.services;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.UserResponse;
@@ -17,4 +18,5 @@ public interface UserService {
     UserResponse getProfile(Long userId);
     UserResponse updateProfile(Long userId, UpdateProfileRequest request);
     void changePassword(Long userId, ChangePasswordRequest request);
+    void addAddress(Long userId, AddressRequest request);
 }

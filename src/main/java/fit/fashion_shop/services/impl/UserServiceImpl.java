@@ -9,10 +9,13 @@ package fit.fashion_shop.services.impl;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.UserResponse;
+import fit.fashion_shop.entities.Address;
 import fit.fashion_shop.entities.User;
+import fit.fashion_shop.repositories.AddressRepository;
 import fit.fashion_shop.repositories.UserRepository;
 import fit.fashion_shop.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final AddressRepository addressRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -102,5 +106,30 @@ public class UserServiceImpl implements UserService {
         // 4. Mã hóa và cập nhật mật khẩu mới
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void addAddress(Long userId, AddressRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // Nếu địa chỉ mới là mặc định, reset các địa chỉ cũ của user này
+        if (request.isDefault()) {
+            addressRepository.resetDefaultAddress(userId);
+        }
+
+        Address address = Address.builder()
+                .recipientName(request.recipientName())
+                .phoneNumber(request.phoneNumber())
+                .street(request.street())
+                .city(request.city())
+                .district(request.district())
+                .ward(request.ward())
+                .isDefault(request.isDefault())
+                .user(user)
+                .build();
+
+        addressRepository.save(address);
     }
 }

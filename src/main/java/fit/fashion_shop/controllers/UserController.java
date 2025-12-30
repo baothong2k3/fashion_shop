@@ -10,6 +10,7 @@ package fit.fashion_shop.controllers;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
+import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.UserResponse;
@@ -89,6 +90,26 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Đổi mật khẩu thành công",
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @PostMapping("/addresses")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> addAddress(
+            @AuthenticationPrincipal User authUser,
+            @Valid @RequestBody AddressRequest request,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        userService.addAddress(authUser.getId(), request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Thêm địa chỉ mới thành công",
                 httpReq.getRequestURI()
         ));
     }
