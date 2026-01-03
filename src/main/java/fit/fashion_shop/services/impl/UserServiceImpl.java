@@ -16,6 +16,10 @@ import fit.fashion_shop.dtos.responses.AddressResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.Address;
 import fit.fashion_shop.entities.User;
+import fit.fashion_shop.exceptions.DuplicateResourceException;
+import fit.fashion_shop.exceptions.OperationNotPermittedException;
+import fit.fashion_shop.exceptions.PasswordValidationException;
+import fit.fashion_shop.exceptions.ResourceNotFoundException;
 import fit.fashion_shop.repositories.AddressRepository;
 import fit.fashion_shop.repositories.UserRepository;
 import fit.fashion_shop.services.UserService;
@@ -37,7 +41,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserResponse getProfile(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         return UserResponse.fromUser(user);
     }
@@ -45,9 +49,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse updateProfile(Long userId, UpdateProfileRequest request) {
-        // 1. Load lại user từ DB để đảm bảo dữ liệu mới nhất (Entity Managed State)
+        // 1. Load lại user từ DB để đảm bảo dữ liệu mới nhất
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         // 2. Partial Update: Chỉ set giá trị nếu request có gửi lên (khác null & khác rỗng)
 
@@ -71,7 +75,7 @@ public class UserServiceImpl implements UserService {
             String newPhone = request.phoneNumber().trim();
             // Kiểm tra số điện thoại đã tồn tại chưa
             if (!newPhone.equals(user.getPhoneNumber()) && userRepository.existsByPhoneNumber(newPhone)) {
-                throw new RuntimeException("Số điện thoại đã được sử dụng");
+                throw new DuplicateResourceException("Số điện thoại đã được sử dụng bởi người dùng khác");
             }
             user.setPhoneNumber(newPhone);
         }
@@ -89,21 +93,21 @@ public class UserServiceImpl implements UserService {
     public void changePassword(Long userId, ChangePasswordRequest request) {
         // 1. Tìm user
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         // 2. Kiểm tra mật khẩu cũ
         if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
-            throw new RuntimeException("Mật khẩu cũ không chính xác");
+            throw new PasswordValidationException("Mật khẩu cũ không chính xác");
         }
 
         // 3. Kiểm tra mật khẩu mới và xác nhận mật khẩu
         if (!request.newPassword().equals(request.confirmPassword())) {
-            throw new RuntimeException("Mật khẩu xác nhận không khớp");
+            throw new PasswordValidationException("Mật khẩu xác nhận không khớp");
         }
 
         // Kiểm tra mật khẩu mới không được trùng mật khẩu cũ
         if (request.newPassword().equals(request.oldPassword())) {
-            throw new RuntimeException("Mật khẩu mới không được trùng với mật khẩu cũ");
+            throw new PasswordValidationException("Mật khẩu mới không được trùng với mật khẩu cũ");
         }
 
         // 4. Mã hóa và cập nhật mật khẩu mới
@@ -115,7 +119,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void addAddress(Long userId, AddressRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         // Nếu địa chỉ mới là mặc định, reset các địa chỉ cũ của user này
         if (request.defaultAddress()) {
@@ -145,7 +149,7 @@ public class UserServiceImpl implements UserService {
         Address addressToUpdate = allAddresses.stream()
                 .filter(a -> a.getId().equals(addressId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ hoặc bạn không có quyền chỉnh sửa"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ hoặc bạn không có quyền chỉnh sửa"));
 
         boolean newDefaultStatus = request.defaultAddress();
 
@@ -192,11 +196,11 @@ public class UserServiceImpl implements UserService {
         Address addressToDelete = userAddresses.stream()
                 .filter(a -> a.getId().equals(addressId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy địa chỉ hoặc bạn không có quyền xóa địa chỉ này"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ"));
 
         // 3. Ràng buộc: Nếu chỉ có 1 địa chỉ duy nhất thì không cho phép xóa
         if (userAddresses.size() == 1) {
-            throw new RuntimeException("Không thể xóa địa chỉ duy nhất. Bạn phải có ít nhất một địa chỉ giao hàng.");
+            throw new OperationNotPermittedException("Không thể xóa địa chỉ duy nhất. Bạn phải có ít nhất một địa chỉ giao hàng.");
         }
 
         // 4. Nếu địa chỉ cần xóa là địa chỉ mặc định, hãy chọn một địa chỉ khác làm mặc định mới
@@ -219,7 +223,7 @@ public class UserServiceImpl implements UserService {
     public List<AddressResponse> getUserAddresses(Long userId) {
         // Kiểm tra user tồn tại
         if (!userRepository.existsById(userId)) {
-            throw new RuntimeException("Không tìm thấy người dùng");
+            throw new ResourceNotFoundException("Không tìm thấy người dùng");
         }
 
         // Lấy danh sách địa chỉ và map sang AddressResponse

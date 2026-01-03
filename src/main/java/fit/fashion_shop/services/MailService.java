@@ -9,6 +9,7 @@ package fit.fashion_shop.services;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.exceptions.EmailSendingException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,7 @@ public class MailService {
 
             mailSender.send(message);
         } catch (MessagingException e) {
-            throw new RuntimeException("Lỗi khi gửi mail: " + e.getMessage());
+            throw new EmailSendingException("Lỗi khi gửi mail xác thực: " + e.getMessage());
         }
     }
 
@@ -82,7 +83,7 @@ public class MailService {
 
             mailSender.send(message);
         } catch (MessagingException e) {
-            throw new RuntimeException("Lỗi khi gửi mail: " + e.getMessage());
+            throw new EmailSendingException("Lỗi khi gửi mail: " + e.getMessage());
         }
     }
 

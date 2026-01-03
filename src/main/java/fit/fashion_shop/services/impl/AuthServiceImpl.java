@@ -14,9 +14,7 @@ import fit.fashion_shop.dtos.responses.LoginResponse;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.enums.OtpType;
 import fit.fashion_shop.enums.Role;
-import fit.fashion_shop.exceptions.AccountNotEnabledException;
-import fit.fashion_shop.exceptions.InvalidCredentialsException;
-import fit.fashion_shop.exceptions.RefreshTokenException;
+import fit.fashion_shop.exceptions.*;
 import fit.fashion_shop.repositories.UserRepository;
 import fit.fashion_shop.services.AuthService;
 import fit.fashion_shop.services.JwtService;
@@ -40,7 +38,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new RuntimeException("Email đã được sử dụng");
+            throw new DuplicateResourceException("Email đã được sử dụng");
         }
 
         User user = User.builder()
@@ -61,12 +59,12 @@ public class AuthServiceImpl implements AuthService {
 
         // 1. Kiểm tra OTP
         if (!otpService.validateOtp(email, code, OtpType.REGISTER)) {
-            throw new RuntimeException("Mã OTP không hợp lệ hoặc đã hết hạn");
+            throw new InvalidOtpException("Mã OTP không hợp lệ hoặc đã hết hạn");
         }
 
         // 2. Kích hoạt tài khoản
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + email));
 
         user.setEnabled(true);
         userRepository.save(user);
@@ -112,7 +110,7 @@ public class AuthServiceImpl implements AuthService {
     public void forgotPassword(ForgotPasswordRequest request) {
         // 1. Kiểm tra email có tồn tại không
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("Email không tồn tại trong hệ thống"));
+                .orElseThrow(() -> new ResourceNotFoundException("Email không tồn tại trong hệ thống"));
 
         // 2. Tạo OTP với type FORGOT_PASSWORD (đã có trong Enum OtpType)
         String otp = otpService.generateOtp(user.getEmail(), OtpType.FORGOT_PASSWORD);
@@ -126,12 +124,12 @@ public class AuthServiceImpl implements AuthService {
     public void resetPassword(ResetPasswordRequest request) {
         // 1. Xác thực OTP
         if (!otpService.validateOtp(request.email(), request.otpCode(), OtpType.FORGOT_PASSWORD)) {
-            throw new RuntimeException("Mã OTP không hợp lệ hoặc đã hết hạn");
+            throw new InvalidOtpException("Mã OTP không hợp lệ hoặc đã hết hạn");
         }
 
         // 2. Tìm User
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         // 3. Cập nhật mật khẩu mới (mã hóa bằng BCrypt)
         user.setPassword(passwordEncoder.encode(request.newPassword()));
@@ -145,11 +143,11 @@ public class AuthServiceImpl implements AuthService {
     public void resendOtp(ResendOtpRequest request) {
         // 1. Kiểm tra User tồn tại
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("Email không tồn tại trong hệ thống"));
+                .orElseThrow(() -> new ResourceNotFoundException("Email không tồn tại trong hệ thống"));
 
         // 2. Logic bổ sung tùy theo loại OTP
         if (request.type() == OtpType.REGISTER && user.isEnabled()) {
-            throw new RuntimeException("Tài khoản này đã được kích hoạt trước đó.");
+            throw new OperationNotPermittedException("Tài khoản này đã được kích hoạt trước đó.");
         }
 
         // 3. Tạo mã OTP mới (tự động xóa mã cũ nếu có)
@@ -177,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 3. Tìm user trong database
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         // 4. Kiểm tra tài khoản còn hoạt động không
         if (!user.isEnabled()) {

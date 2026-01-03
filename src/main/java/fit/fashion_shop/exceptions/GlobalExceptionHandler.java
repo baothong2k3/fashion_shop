@@ -80,17 +80,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    // Xử lý các lỗi hệ thống không lường trước được
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex, HttpServletRequest request) {
-        ApiResponse<Void> response = ApiResponse.error(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Có lỗi hệ thống xảy ra: " + ex.getMessage(),
-                request.getRequestURI()
-        );
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
     // 2. Xử lý lỗi Refresh Token (401 Unauthorized)
     @ExceptionHandler(RefreshTokenException.class)
     public ResponseEntity<ApiResponse<Void>> handleRefreshTokenException(
@@ -135,5 +124,44 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    // 1. Xử lý lỗi không tìm thấy tài nguyên -> 404
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(HttpStatus.NOT_FOUND.value(), ex.getMessage(), request.getRequestURI()));
+    }
+
+    // 2. Xử lý lỗi trùng lặp dữ liệu -> 409
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicateResource(DuplicateResourceException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), ex.getMessage(), request.getRequestURI()));
+    }
+
+    // 3. Xử lý lỗi OTP và Mật khẩu, Logic không cho phép -> 400
+    @ExceptionHandler({
+            InvalidOtpException.class,
+            PasswordValidationException.class,
+            OperationNotPermittedException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleBadRequestExceptions(RuntimeException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), ex.getMessage(), request.getRequestURI()));
+    }
+
+    // 4. Xử lý lỗi gửi mail -> 500
+    @ExceptionHandler(EmailSendingException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailSendingException(EmailSendingException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), ex.getMessage(), request.getRequestURI()));
+    }
+
+    // Handler mặc định cho các lỗi còn lại
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi hệ thống: " + ex.getMessage(), request.getRequestURI()));
     }
 }
