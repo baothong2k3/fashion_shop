@@ -11,6 +11,7 @@ package fit.fashion_shop.services;/*
 
 import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
+import fit.fashion_shop.dtos.requests.ImportantDateRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.AddressResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
@@ -25,4 +26,5 @@ public interface UserService {
     void updateAddress(Long userId, Long addressId, AddressRequest request);
     void deleteAddress(Long userId, Long addressId);
     List<AddressResponse> getUserAddresses(Long userId);
+    void addImportantDates(Long userId, List<ImportantDateRequest> requests);
 }

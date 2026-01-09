@@ -12,6 +12,7 @@ package fit.fashion_shop.controllers;/*
 import fit.fashion_shop.dtos.ApiResponse;
 import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
+import fit.fashion_shop.dtos.requests.ImportantDateRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.AddressResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
@@ -174,6 +175,26 @@ public class UserController {
                 HttpStatus.OK.value(),
                 "Lấy danh sách địa chỉ thành công",
                 addresses,
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @PostMapping("/important-dates")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> addImportantDates(
+            @AuthenticationPrincipal User authUser,
+            @Valid @RequestBody List<ImportantDateRequest> requests,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        userService.addImportantDates(authUser.getId(), requests);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Thêm các ngày quan trọng thành công",
                 httpReq.getRequestURI()
         ));
     }

@@ -11,16 +11,19 @@ package fit.fashion_shop.services.impl;/*
 
 import fit.fashion_shop.dtos.requests.AddressRequest;
 import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
+import fit.fashion_shop.dtos.requests.ImportantDateRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.AddressResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.Address;
+import fit.fashion_shop.entities.ImportantDate;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.exceptions.DuplicateResourceException;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.PasswordValidationException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
 import fit.fashion_shop.repositories.AddressRepository;
+import fit.fashion_shop.repositories.ImportantDateRepository;
 import fit.fashion_shop.repositories.UserRepository;
 import fit.fashion_shop.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ImportantDateRepository importantDateRepository;
 
     @Override
     public UserResponse getProfile(Long userId) {
@@ -231,5 +235,27 @@ public class UserServiceImpl implements UserService {
                 .stream()
                 .map(AddressResponse::fromAddress)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public void addImportantDates(Long userId, List<ImportantDateRequest> requests) {
+        // 1. Kiểm tra User tồn tại
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        // 2. Chuyển đổi từ DTO sang Entity và lưu
+        List<ImportantDate> dates = requests.stream()
+                .map(req -> ImportantDate.builder()
+                        .title(req.title())
+                        .date(req.date())
+                        .remindBeforeDays(req.remindBeforeDays() != null ? req.remindBeforeDays() : 7)
+                        .yearlyRepeat(req.yearlyRepeat())
+                        .active(true)
+                        .user(user)
+                        .build())
+                .toList();
+
+        importantDateRepository.saveAll(dates);
     }
 }
