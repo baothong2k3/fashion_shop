@@ -11,6 +11,7 @@ package fit.fashion_shop.services.impl;/*
 
 import fit.fashion_shop.dtos.requests.*;
 import fit.fashion_shop.dtos.responses.LoginResponse;
+import fit.fashion_shop.entities.ImportantDate;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.enums.OtpType;
 import fit.fashion_shop.enums.Role;
@@ -25,6 +26,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -36,11 +39,13 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
 
     @Override
+    @Transactional
     public void register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email())) {
             throw new DuplicateResourceException("Email đã được sử dụng");
         }
 
+        // 1. Khởi tạo đối tượng User
         User user = User.builder()
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
@@ -48,6 +53,24 @@ public class AuthServiceImpl implements AuthService {
                 .role(Role.CUSTOMER)
                 .enabled(false) // Đợi xác thực OTP
                 .build();
+
+        // 2. Kiểm tra và thêm các ngày quan trọng nếu người dùng có nhập
+        if (request.importantDates() != null && !request.importantDates().isEmpty()) {
+            List<ImportantDate> dates = request.importantDates().stream()
+                    .map(dateReq -> ImportantDate.builder()
+                            .title(dateReq.title())
+                            .date(dateReq.date())
+                            .remindBeforeDays(dateReq.remindBeforeDays() != null ? dateReq.remindBeforeDays() : 7)
+                            .yearlyRepeat(dateReq.yearlyRepeat())
+                            .active(true)
+                            .user(user) // Gán user vào từng ngày để giữ quan hệ 1-N
+                            .build())
+                    .toList();
+
+            user.setImportantDates(dates); // Gán danh sách vào User
+        }
+
+        // 3. Lưu user
         userRepository.save(user);
     }
 

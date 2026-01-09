@@ -14,6 +14,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 public record RegisterRequest(
         @NotBlank(message = "Email không được để trống")
         @Email(message = "Email không hợp lệ")
@@ -28,6 +30,8 @@ public record RegisterRequest(
         String password,
 
         @NotBlank(message = "Họ tên không được để trống")
-        String fullName
+        String fullName,
+
+        List<ImportantDateRequest> importantDates
 ) {
 }
