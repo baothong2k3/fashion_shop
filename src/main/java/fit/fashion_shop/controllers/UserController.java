@@ -219,4 +219,24 @@ public class UserController {
                 httpReq.getRequestURI()
         ));
     }
+
+    @DeleteMapping("/important-dates/{dateId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> deleteImportantDate(
+            @AuthenticationPrincipal User authUser,
+            @PathVariable Long dateId,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        userService.deleteImportantDate(authUser.getId(), dateId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Xóa ngày quan trọng thành công",
+                httpReq.getRequestURI()
+        ));
+    }
 }

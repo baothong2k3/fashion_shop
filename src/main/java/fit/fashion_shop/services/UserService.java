@@ -28,4 +28,5 @@ public interface UserService {
     List<AddressResponse> getUserAddresses(Long userId);
     void addImportantDates(Long userId, List<ImportantDateRequest> requests);
     void updateImportantDate(Long userId, Long dateId, ImportantDateRequest request);
+    void deleteImportantDate(Long userId, Long dateId);
 }

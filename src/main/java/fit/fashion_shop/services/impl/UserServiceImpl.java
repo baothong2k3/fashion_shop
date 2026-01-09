@@ -275,4 +275,15 @@ public class UserServiceImpl implements UserService {
         // 3. Lưu (Hibernate sẽ tự động update nhờ @Transactional)
         importantDateRepository.save(importantDate);
     }
+
+    @Override
+    @Transactional
+    public void deleteImportantDate(Long userId, Long dateId) {
+        // 1. Tìm và kiểm tra quyền sở hữu (tránh việc User A xóa ngày của User B)
+        ImportantDate importantDate = importantDateRepository.findByIdAndUserId(dateId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ngày quan trọng hoặc bạn không có quyền xóa"));
+
+        // 2. Thực hiện xóa
+        importantDateRepository.delete(importantDate);
+    }
 }
