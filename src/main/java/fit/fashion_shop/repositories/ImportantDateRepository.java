@@ -13,6 +13,9 @@ import fit.fashion_shop.entities.ImportantDate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ImportantDateRepository extends JpaRepository<ImportantDate, Long> {
+    Optional<ImportantDate> findByIdAndUserId(Long id, Long userId);
 }

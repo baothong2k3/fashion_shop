@@ -258,4 +258,21 @@ public class UserServiceImpl implements UserService {
 
         importantDateRepository.saveAll(dates);
     }
+
+    @Override
+    @Transactional
+    public void updateImportantDate(Long userId, Long dateId, ImportantDateRequest request) {
+        // 1. Kiểm tra sự tồn tại và quyền sở hữu
+        ImportantDate importantDate = importantDateRepository.findByIdAndUserId(dateId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ngày quan trọng hoặc bạn không có quyền chỉnh sửa"));
+
+        // 2. Cập nhật thông tin
+        importantDate.setTitle(request.title());
+        importantDate.setDate(request.date());
+        importantDate.setRemindBeforeDays(request.remindBeforeDays() != null ? request.remindBeforeDays() : 7);
+        importantDate.setYearlyRepeat(request.yearlyRepeat());
+
+        // 3. Lưu (Hibernate sẽ tự động update nhờ @Transactional)
+        importantDateRepository.save(importantDate);
+    }
 }

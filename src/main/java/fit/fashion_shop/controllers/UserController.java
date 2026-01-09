@@ -198,4 +198,25 @@ public class UserController {
                 httpReq.getRequestURI()
         ));
     }
+
+    @PutMapping("/important-dates/{dateId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> updateImportantDate(
+            @AuthenticationPrincipal User authUser,
+            @PathVariable Long dateId,
+            @Valid @RequestBody ImportantDateRequest request,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        userService.updateImportantDate(authUser.getId(), dateId, request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Cập nhật thông tin ngày quan trọng thành công",
+                httpReq.getRequestURI()
+        ));
+    }
 }
