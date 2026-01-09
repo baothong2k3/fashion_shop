@@ -14,6 +14,7 @@ import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.ImportantDateRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.AddressResponse;
+import fit.fashion_shop.dtos.responses.ImportantDateResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.Address;
 import fit.fashion_shop.entities.ImportantDate;
@@ -285,5 +286,19 @@ public class UserServiceImpl implements UserService {
 
         // 2. Thực hiện xóa
         importantDateRepository.delete(importantDate);
+    }
+
+    @Override
+    public List<ImportantDateResponse> getUserImportantDates(Long userId) {
+        // 1. Kiểm tra user tồn tại (tùy chọn nhưng nên có)
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("Không tìm thấy người dùng");
+        }
+
+        // 2. Lấy danh sách entity và map sang DTO
+        return importantDateRepository.findByUserIdOrderByDateAsc(userId)
+                .stream()
+                .map(ImportantDateResponse::fromEntity)
+                .toList();
     }
 }

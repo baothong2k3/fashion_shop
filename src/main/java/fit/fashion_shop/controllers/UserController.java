@@ -15,6 +15,7 @@ import fit.fashion_shop.dtos.requests.ChangePasswordRequest;
 import fit.fashion_shop.dtos.requests.ImportantDateRequest;
 import fit.fashion_shop.dtos.requests.UpdateProfileRequest;
 import fit.fashion_shop.dtos.responses.AddressResponse;
+import fit.fashion_shop.dtos.responses.ImportantDateResponse;
 import fit.fashion_shop.dtos.responses.UserResponse;
 import fit.fashion_shop.entities.User;
 import fit.fashion_shop.services.UserService;
@@ -236,6 +237,26 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Xóa ngày quan trọng thành công",
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @GetMapping("/important-dates")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<ImportantDateResponse>>> getImportantDates(
+            @AuthenticationPrincipal User authUser,
+            HttpServletRequest httpReq) {
+
+        if (authUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<ImportantDateResponse> dates = userService.getUserImportantDates(authUser.getId());
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Lấy danh sách ngày quan trọng thành công",
+                dates,
                 httpReq.getRequestURI()
         ));
     }
