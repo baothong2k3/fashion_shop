@@ -10,6 +10,7 @@ package fit.fashion_shop.dtos.requests;/*
  */
 
 import fit.fashion_shop.enums.Gender;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import java.time.LocalDate;
@@ -18,6 +19,9 @@ public record UpdateProfileRequest(
         String fullName,
 
         Gender gender,
+
+        @Email(message = "Email không hợp lệ")
+        String email,
 
         @Past(message = "Ngày sinh phải là ngày trong quá khứ")
         LocalDate dateOfBirth,

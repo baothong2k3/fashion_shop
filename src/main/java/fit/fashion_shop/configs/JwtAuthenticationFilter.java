@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 User user = userRepository.findByEmail(userEmail).orElse(null);
 
                 // Kiểm tra tính hợp lệ của User
-                if (user != null && user.isEnabled() && jwtService.isTokenValid(jwt, user.getEmail())) {
+                if (user != null && jwtService.isTokenValid(jwt, user.getEmail())) {
 
                     // Tạo danh sách quyền từ Role của User
                     var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));

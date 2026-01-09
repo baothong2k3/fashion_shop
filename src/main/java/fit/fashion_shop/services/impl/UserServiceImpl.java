@@ -58,7 +58,23 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
-        // 2. Partial Update: Chỉ set giá trị nếu request có gửi lên (khác null & khác rỗng)
+        // 2. Cập nhật Email
+        if (request.email() != null && !request.email().isBlank()) {
+            String newEmail = request.email().trim();
+
+            // Chỉ xử lý nếu email thay đổi
+            if (!newEmail.equalsIgnoreCase(user.getEmail())) {
+                // Kiểm tra email mới đã tồn tại chưa
+                if (userRepository.existsByEmail(newEmail)) {
+                    throw new DuplicateResourceException("Email đã được sử dụng bởi người dùng khác");
+                }
+
+                user.setEmail(newEmail);
+                user.setEnabled(false); // Set về chưa xác thực khi đổi email
+            }
+        }
+
+        // 3. Partial Update: Chỉ set giá trị nếu request có gửi lên (khác null & khác rỗng)
 
         // Cập nhật FullName
         if (request.fullName() != null && !request.fullName().isBlank()) {

@@ -38,7 +38,7 @@ public class AuthController {
 
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
-                "Đăng ký tạm thời thành công. Vui lòng kiểm tra email để lấy mã OTP.",
+                "Đăng ký thành công. Bạn có thể đăng nhập ngay.",
                 servletRequest.getRequestURI()
         ));
     }
@@ -52,7 +52,7 @@ public class AuthController {
 
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
-                "Xác thực tài khoản thành công. Bạn có thể đăng nhập.",
+                "Xác thực tài khoản thành công.",
                 servletRequest.getRequestURI()
         ));
     }

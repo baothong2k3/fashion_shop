@@ -49,9 +49,6 @@ public class AuthServiceImpl implements AuthService {
                 .enabled(false) // Đợi xác thực OTP
                 .build();
         userRepository.save(user);
-
-        String otp = otpService.generateOtp(request.email(), OtpType.REGISTER);
-        mailService.sendOtpMail(request.email(), otp);
     }
 
     @Override
@@ -79,21 +76,12 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new InvalidCredentialsException("Email hoặc mật khẩu không chính xác"));
 
-        // 2. Kiểm tra tài khoản đã được kích hoạt (Verify OTP) chưa
-        if (!user.isEnabled()) {
-            // Tự động gửi lại mã OTP
-            String otp = otpService.generateOtp(user.getEmail(), OtpType.REGISTER);
-            mailService.sendOtpMail(user.getEmail(), otp);
-
-            throw new AccountNotEnabledException("Tài khoản chưa được kích hoạt. Một mã OTP mới đã được gửi đến email của bạn để kích hoạt.");
-        }
-
-        // 3. Kiểm tra mật khẩu
+        // 2. Kiểm tra mật khẩu
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new InvalidCredentialsException("Email hoặc mật khẩu không chính xác");
         }
 
-        // 4. Tạo bộ đôi Token
+        // 3. Tạo bộ đôi Token
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
@@ -177,12 +165,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
-        // 4. Kiểm tra tài khoản còn hoạt động không
-        if (!user.isEnabled()) {
-            throw new AccountNotEnabledException("Tài khoản đã bị khóa hoặc chưa kích hoạt");
-        }
-
-        // 5. Tạo bộ đôi Token mới (Rotation)
+        // 4. Tạo bộ đôi Token mới (Rotation)
         String newAccessToken = jwtService.generateAccessToken(user);
         String newRefreshToken = jwtService.generateRefreshToken(user);
 
