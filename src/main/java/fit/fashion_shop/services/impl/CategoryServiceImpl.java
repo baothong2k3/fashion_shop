@@ -12,6 +12,7 @@ package fit.fashion_shop.services.impl;/*
 import fit.fashion_shop.dtos.requests.CategoryRequest;
 import fit.fashion_shop.dtos.requests.CategoryUpdateRequest;
 import fit.fashion_shop.dtos.responses.CategoryResponse;
+import fit.fashion_shop.dtos.responses.CategoryTreeResponse;
 import fit.fashion_shop.entities.Category;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
@@ -22,6 +23,8 @@ import fit.fashion_shop.services.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -151,5 +154,14 @@ public class CategoryServiceImpl implements CategoryService {
 
         // 5. Xóa danh mục khỏi database
         categoryRepository.delete(category);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryTreeResponse> getCategoryTree() {
+        return categoryRepository.findByParentIsNullAndIsActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(CategoryTreeResponse::fromEntity)
+                .toList();
     }
 }
