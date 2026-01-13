@@ -22,6 +22,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/admin/categories")
 @RequiredArgsConstructor
@@ -74,6 +76,24 @@ public class CategoryController {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Xóa danh mục thành công",
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAdminCategories(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long parentId,
+            @RequestParam(required = false) Boolean isActive,
+            HttpServletRequest httpReq) {
+
+        List<CategoryResponse> list = categoryService.getAllCategoriesForAdmin(keyword, parentId, isActive);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Lấy danh sách danh mục cho admin thành công",
+                list,
                 httpReq.getRequestURI()
         ));
     }

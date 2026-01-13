@@ -21,4 +21,5 @@ public interface CategoryService {
     CategoryResponse updateCategory(Long id, CategoryUpdateRequest request);
     void deleteCategory(Long id);
     List<CategoryTreeResponse> getCategoryTree();
+    List<CategoryResponse> getAllCategoriesForAdmin(String keyword, Long parentId, Boolean isActive);
 }

@@ -164,4 +164,17 @@ public class CategoryServiceImpl implements CategoryService {
                 .map(CategoryTreeResponse::fromEntity)
                 .toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> getAllCategoriesForAdmin(String keyword, Long parentId, Boolean isActive) {
+        return categoryRepository.findAll().stream()
+                .filter(c -> (keyword == null || keyword.isBlank() ||
+                        c.getName().toLowerCase().contains(keyword.toLowerCase())))
+                .filter(c -> (parentId == null ||
+                        (c.getParent() != null && c.getParent().getId().equals(parentId))))
+                .filter(c -> (isActive == null || c.isActive() == isActive))
+                .map(CategoryResponse::fromEntity)
+                .toList();
+    }
 }
