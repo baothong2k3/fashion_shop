@@ -12,6 +12,7 @@ package fit.fashion_shop.services.impl;/*
 import fit.fashion_shop.dtos.requests.CategoryRequest;
 import fit.fashion_shop.dtos.responses.CategoryResponse;
 import fit.fashion_shop.entities.Category;
+import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
 import fit.fashion_shop.repositories.CategoryRepository;
 import fit.fashion_shop.services.CategoryService;
@@ -53,6 +54,52 @@ public class CategoryServiceImpl implements CategoryService {
                 .parent(parent)
                 .build();
 
+        return CategoryResponse.fromEntity(categoryRepository.save(category));
+    }
+
+    @Override
+    @Transactional
+    public CategoryResponse updateCategory(Long id, CategoryRequest request) {
+        // 1. Tìm Category hiện tại
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + id));
+
+        // 2. Cập nhật danh mục cha (Parent)
+        if (request.parentId() != null) {
+            if (request.parentId().equals(id)) {
+                throw new OperationNotPermittedException("Danh mục cha không thể là chính nó");
+            }
+            Category parent = categoryRepository.findById(request.parentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục cha"));
+            category.setParent(parent);
+        } else {
+            category.setParent(null);
+        }
+
+        // 3. Xử lý cập nhật ảnh (Xóa cũ trên Cloudinary, upload mới)
+        if (request.imageFile() != null && !request.imageFile().isEmpty()) {
+            // Xóa ảnh cũ
+            cloudinaryService.deleteFile(category.getImage());
+            // Upload và cập nhật URL mới vào database (thông qua Entity)
+            String newImageUrl = cloudinaryService.uploadFile(request.imageFile(), "categories/images");
+            category.setImage(newImageUrl);
+        }
+
+        // 4. Xử lý cập nhật icon tương tự ảnh
+        if (request.iconFile() != null && !request.iconFile().isEmpty()) {
+            cloudinaryService.deleteFile(category.getIcon());
+            String newIconUrl = cloudinaryService.uploadFile(request.iconFile(), "categories/icons");
+            category.setIcon(newIconUrl);
+        }
+
+        // 5. Cập nhật các trường thông tin khác
+        category.setName(request.name());
+        category.setSlug(request.slug());
+        category.setDescription(request.description());
+        category.setSortOrder(request.sortOrder());
+        category.setActive(request.isActive());
+
+        // 6. Lưu và trả về kết quả
         return CategoryResponse.fromEntity(categoryRepository.save(category));
     }
 }

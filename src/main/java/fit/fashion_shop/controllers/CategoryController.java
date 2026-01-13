@@ -44,4 +44,21 @@ public class CategoryController {
                         httpReq.getRequestURI()
                 ));
     }
+
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
+            @PathVariable Long id,
+            @Valid @ModelAttribute CategoryRequest request,
+            HttpServletRequest httpReq) {
+
+        CategoryResponse response = categoryService.updateCategory(id, request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Cập nhật danh mục thành công",
+                response,
+                httpReq.getRequestURI()
+        ));
+    }
 }

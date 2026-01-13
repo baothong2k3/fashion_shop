@@ -14,4 +14,5 @@ import fit.fashion_shop.dtos.responses.CategoryResponse;
 
 public interface CategoryService {
     CategoryResponse createCategory(CategoryRequest request);
+    CategoryResponse updateCategory(Long id, CategoryRequest request);
 }
