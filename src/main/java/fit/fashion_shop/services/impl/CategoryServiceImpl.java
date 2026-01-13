@@ -16,6 +16,7 @@ import fit.fashion_shop.entities.Category;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
 import fit.fashion_shop.repositories.CategoryRepository;
+import fit.fashion_shop.repositories.ProductRepository;
 import fit.fashion_shop.services.CategoryService;
 import fit.fashion_shop.services.CloudinaryService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CloudinaryService cloudinaryService;
+    private final ProductRepository productRepository;
 
     @Override
     @Transactional
@@ -119,5 +121,35 @@ public class CategoryServiceImpl implements CategoryService {
 
         // 6. Lưu và trả về kết quả
         return CategoryResponse.fromEntity(categoryRepository.save(category));
+    }
+
+    @Override
+    @Transactional
+    public void deleteCategory(Long id) {
+        // 1. Tìm danh mục cần xóa
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + id));
+
+        // 2. Bước kiểm tra mới: Nếu danh mục có sản phẩm thì không được xóa
+        if (productRepository.existsByCategoryId(id)) {
+            throw new OperationNotPermittedException("Không thể xóa danh mục vì đang chứa sản phẩm. Vui lòng xóa hoặc di chuyển sản phẩm trước.");
+        }
+
+        // 3. Xử lý danh mục con: Xóa liên kết với cha (chuyển con thành danh mục gốc)
+        if (category.getChildren() != null && !category.getChildren().isEmpty()) {
+            category.getChildren().forEach(child -> child.setParent(null));
+            categoryRepository.saveAll(category.getChildren());
+        }
+
+        // 4. Xóa ảnh và icon trên Cloudinary (sử dụng deleteFile của CloudinaryService)
+        if (category.getImage() != null) {
+            cloudinaryService.deleteFile(category.getImage());
+        }
+        if (category.getIcon() != null) {
+            cloudinaryService.deleteFile(category.getIcon());
+        }
+
+        // 5. Xóa danh mục khỏi database
+        categoryRepository.delete(category);
     }
 }

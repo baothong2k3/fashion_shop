@@ -62,4 +62,19 @@ public class CategoryController {
                 httpReq.getRequestURI()
         ));
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteCategory(
+            @PathVariable Long id,
+            HttpServletRequest httpReq) {
+
+        categoryService.deleteCategory(id);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Xóa danh mục thành công",
+                httpReq.getRequestURI()
+        ));
+    }
 }
