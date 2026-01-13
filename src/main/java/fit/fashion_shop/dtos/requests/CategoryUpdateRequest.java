@@ -1,5 +1,5 @@
 /*
- * @ (#) CategoryRequest.java    1.0    13/01/2026
+ * @ (#) CategoryUpdateRequest.java    1.0    13/01/2026
  * Copyright (c) 2026 IUH. All rights reserved.
  */
 package fit.fashion_shop.dtos.requests;/*
@@ -9,15 +9,12 @@ package fit.fashion_shop.dtos.requests;/*
  * @version: 1.0
  */
 
-import jakarta.validation.constraints.Pattern;
 import org.springframework.web.multipart.MultipartFile;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
-public record CategoryRequest(
-        @NotBlank(message = "Tên danh mục không được để trống")
+public record CategoryUpdateRequest(
         String name,
 
-        @NotBlank(message = "Slug không được để trống")
         @Pattern(regexp = "^[a-z0-9-]+$", message = "Slug không hợp lệ")
         String slug,
 
@@ -27,4 +24,5 @@ public record CategoryRequest(
         Boolean isActive,
         MultipartFile imageFile,
         MultipartFile iconFile
-) {}
+) {
+}

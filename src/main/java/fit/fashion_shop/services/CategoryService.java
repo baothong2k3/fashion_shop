@@ -10,9 +10,10 @@ package fit.fashion_shop.services;/*
  */
 
 import fit.fashion_shop.dtos.requests.CategoryRequest;
+import fit.fashion_shop.dtos.requests.CategoryUpdateRequest;
 import fit.fashion_shop.dtos.responses.CategoryResponse;
 
 public interface CategoryService {
     CategoryResponse createCategory(CategoryRequest request);
-    CategoryResponse updateCategory(Long id, CategoryRequest request);
+    CategoryResponse updateCategory(Long id, CategoryUpdateRequest request);
 }

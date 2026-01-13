@@ -10,6 +10,7 @@ package fit.fashion_shop.services.impl;/*
  */
 
 import fit.fashion_shop.dtos.requests.CategoryRequest;
+import fit.fashion_shop.dtos.requests.CategoryUpdateRequest;
 import fit.fashion_shop.dtos.responses.CategoryResponse;
 import fit.fashion_shop.entities.Category;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
@@ -59,21 +60,27 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public CategoryResponse updateCategory(Long id, CategoryRequest request) {
+    public CategoryResponse updateCategory(Long id, CategoryUpdateRequest request) {
         // 1. Tìm Category hiện tại
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + id));
 
         // 2. Cập nhật danh mục cha (Parent)
         if (request.parentId() != null) {
-            if (request.parentId().equals(id)) {
-                throw new OperationNotPermittedException("Danh mục cha không thể là chính nó");
+            if (request.parentId() == 0) {
+                // Quy ước: Nếu client gửi parentId = 0, hiểu là muốn chuyển thành danh mục gốc (null)
+                category.setParent(null);
+            } else {
+                // Ngăn chặn việc gán cha là chính nó
+                if (request.parentId().equals(id)) {
+                    throw new OperationNotPermittedException("Danh mục cha không thể là chính nó");
+                }
+
+                // Tìm và gán danh mục cha mới
+                Category parent = categoryRepository.findById(request.parentId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục cha"));
+                category.setParent(parent);
             }
-            Category parent = categoryRepository.findById(request.parentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục cha"));
-            category.setParent(parent);
-        } else {
-            category.setParent(null);
         }
 
         // 3. Xử lý cập nhật ảnh (Xóa cũ trên Cloudinary, upload mới)
@@ -93,11 +100,22 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         // 5. Cập nhật các trường thông tin khác
-        category.setName(request.name());
-        category.setSlug(request.slug());
-        category.setDescription(request.description());
-        category.setSortOrder(request.sortOrder());
-        category.setActive(request.isActive());
+        if (request.name() != null && !request.name().isBlank()) {
+            category.setName(request.name().trim());
+        }
+        if (request.slug() != null && !request.slug().isBlank()) {
+            category.setSlug(request.slug().trim());
+        }
+        if (request.description() != null) {
+            category.setDescription(request.description());
+        }
+
+        if (request.sortOrder() != null) {
+            category.setSortOrder(request.sortOrder());
+        }
+        if (request.isActive() != null) {
+            category.setActive(request.isActive());
+        }
 
         // 6. Lưu và trả về kết quả
         return CategoryResponse.fromEntity(categoryRepository.save(category));

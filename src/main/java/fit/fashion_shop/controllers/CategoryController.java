@@ -11,6 +11,7 @@ package fit.fashion_shop.controllers;/*
 
 import fit.fashion_shop.dtos.ApiResponse;
 import fit.fashion_shop.dtos.requests.CategoryRequest;
+import fit.fashion_shop.dtos.requests.CategoryUpdateRequest;
 import fit.fashion_shop.dtos.responses.CategoryResponse;
 import fit.fashion_shop.services.CategoryService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,7 +50,7 @@ public class CategoryController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
             @PathVariable Long id,
-            @Valid @ModelAttribute CategoryRequest request,
+            @Valid @ModelAttribute CategoryUpdateRequest request,
             HttpServletRequest httpReq) {
 
         CategoryResponse response = categoryService.updateCategory(id, request);
