@@ -37,10 +37,18 @@ public class Product {
     private Integer discount;
     private String thumbnail;
     private Integer stock;
-    private boolean isNew;
-    private boolean isFeatured;
-    private boolean isBestSeller;
-    private boolean isCustomizable; // Quan trọng: Phân loại SP
+
+    @Builder.Default
+    private boolean newProduct = true;
+
+    @Builder.Default
+    private boolean featured = true;
+
+    @Builder.Default
+    private boolean bestSeller = true;
+
+    @Builder.Default
+    private boolean customizable = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
