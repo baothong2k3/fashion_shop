@@ -11,6 +11,8 @@ package fit.fashion_shop.dtos.responses;/*
 
 import fit.fashion_shop.entities.Product;
 
+import java.time.LocalDateTime;
+
 public record ProductResponse(
         Long id,
         String name,
@@ -25,6 +27,8 @@ public record ProductResponse(
         boolean featured,
         boolean bestSeller,
         boolean customizable,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         Long categoryId
 ) {
     public static ProductResponse fromEntity(Product product) {
@@ -42,6 +46,8 @@ public record ProductResponse(
                 product.isFeatured(),
                 product.isBestSeller(),
                 product.isCustomizable(),
+                product.getCreatedAt(),
+                product.getUpdatedAt(),
                 product.getCategory() != null ? product.getCategory().getId() : null
         );
     }
