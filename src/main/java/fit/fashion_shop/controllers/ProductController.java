@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/admin/products")
 @RequiredArgsConstructor
@@ -32,10 +34,11 @@ public class ProductController {
     private final ObjectMapper objectMapper; // Spring tự động cấu hình
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ADMIN')") // Chỉ ADMIN mới có quyền truy cập
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
             @RequestParam("productInfo") String productInfoJson,
             @RequestPart("thumbnailFile") MultipartFile thumbnailFile,
+            @RequestPart(value = "imageFiles", required = false) List<MultipartFile> imageFiles,
             HttpServletRequest httpReq) {
 
         try {
@@ -43,7 +46,7 @@ public class ProductController {
             ProductRequest request = objectMapper.readValue(productInfoJson, ProductRequest.class);
 
             // Gọi service xử lý
-            ProductResponse response = productService.createProduct(request, thumbnailFile);
+            ProductResponse response = productService.createProduct(request, thumbnailFile, imageFiles);
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success(
@@ -53,9 +56,7 @@ public class ProductController {
                             httpReq.getRequestURI()
                     ));
         } catch (Exception e) {
-            // GlobalExceptionHandler sẽ bắt các lỗi Runtime,
-            // nhưng lỗi parse JSON cần xử lý hoặc ném ra RuntimeException
-            throw new RuntimeException("Dữ liệu JSON không hợp lệ: " + e.getMessage());
+            throw new RuntimeException("Dữ liệu JSON không hợp lệ hoặc lỗi xử lý: " + e.getMessage());
         }
     }
 }

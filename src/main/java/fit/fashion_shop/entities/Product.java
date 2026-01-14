@@ -9,6 +9,7 @@ package fit.fashion_shop.entities;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.utils.StringListConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -16,6 +17,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -42,6 +44,10 @@ public class Product {
     private Integer discount;
     private String thumbnail;
     private Integer stock;
+
+    @Convert(converter = StringListConverter.class)
+    @Column(columnDefinition = "JSON")
+    private List<String> images = new ArrayList<>();
 
     @Builder.Default
     private boolean newProduct = true;

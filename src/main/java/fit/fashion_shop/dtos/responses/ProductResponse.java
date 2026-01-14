@@ -12,6 +12,7 @@ package fit.fashion_shop.dtos.responses;/*
 import fit.fashion_shop.entities.Product;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ProductResponse(
         Long id,
@@ -22,6 +23,7 @@ public record ProductResponse(
         Double salePrice,
         Integer discount,
         String thumbnail,
+        List<String> images,
         Integer stock,
         boolean newProduct,
         boolean featured,
@@ -41,6 +43,7 @@ public record ProductResponse(
                 product.getSalePrice(),
                 product.getDiscount(),
                 product.getThumbnail(),
+                product.getImages(),
                 product.getStock(),
                 product.isNewProduct(),
                 product.isFeatured(),

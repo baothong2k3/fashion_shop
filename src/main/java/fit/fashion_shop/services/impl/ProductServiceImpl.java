@@ -23,6 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
@@ -33,13 +36,27 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductResponse createProduct(ProductRequest request, MultipartFile thumbnailFile) {
+    public ProductResponse createProduct(ProductRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles) {
         // 1. Kiểm tra danh mục tồn tại
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
 
         // 2. Upload thumbnail lên Cloudinary
         String thumbnailUrl = cloudinaryService.uploadFile(thumbnailFile, "products/thumbnails");
+
+        // 3. Upload danh sách ảnh
+        List<String> imageUrls = new ArrayList<>();
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            for (MultipartFile file : imageFiles) {
+                if (file != null && !file.isEmpty()) {
+                    // Upload từng file và thêm URL vào list
+                    String url = cloudinaryService.uploadFile(file, "products/images");
+                    if (url != null) {
+                        imageUrls.add(url);
+                    }
+                }
+            }
+        }
 
         // 3. Tạo Entity Product
         Product product = Product.builder()
@@ -51,6 +68,7 @@ public class ProductServiceImpl implements ProductService {
                 .discount(request.discount())
                 .stock(request.stock())
                 .thumbnail(thumbnailUrl)
+                .images(imageUrls)
                 .newProduct(request.newProduct() != null ? request.newProduct() : true)
                 .featured(request.featured() != null ? request.featured() : false)
                 .bestSeller(request.bestSeller() != null ? request.bestSeller() : false)
