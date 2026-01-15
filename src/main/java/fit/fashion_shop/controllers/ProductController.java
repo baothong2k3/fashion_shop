@@ -117,4 +117,20 @@ public class ProductController {
             throw new RuntimeException("Lỗi xử lý dữ liệu: " + e.getMessage());
         }
     }
+
+    @DeleteMapping("/variants/{variantId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProductWithVariantsResponse>> deleteVariant(
+            @PathVariable Long variantId,
+            HttpServletRequest httpReq) {
+
+        ProductWithVariantsResponse response = productService.deleteProductVariant(variantId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Xóa biến thể thành công",
+                response,
+                httpReq.getRequestURI()
+        ));
+    }
 }

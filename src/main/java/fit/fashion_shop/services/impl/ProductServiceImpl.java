@@ -246,4 +246,35 @@ public class ProductServiceImpl implements ProductService {
 
         return ProductWithVariantsResponse.fromEntity(product, allVariants);
     }
+
+    @Override
+    @Transactional
+    public ProductWithVariantsResponse deleteProductVariant(Long variantId) {
+        // 1. Tìm biến thể cần xóa
+        ProductVariant variant = productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể với ID: " + variantId));
+
+        // 2. Lưu lại Product gốc để query lại sau khi xóa
+        Product product = variant.getProduct();
+        Long productId = product.getId();
+
+        // 3. Xóa ảnh Thumbnail trên Cloudinary (Nếu có)
+        // Lưu ý: Không xóa ảnh của AttributeValue vì ảnh đó có thể dùng chung cho các biến thể khác hoặc sản phẩm khác
+        if (variant.getThumbnail() != null && !variant.getThumbnail().isBlank()) {
+            cloudinaryService.deleteFile(variant.getThumbnail());
+        }
+
+        // 4. Xóa biến thể trong Database
+        // JPA sẽ tự động xóa các dòng trong bảng product_variant_attributes nhờ orphanRemoval=true trong Entity ProductVariant
+        productVariantRepository.delete(variant);
+
+        // 5. Flush để đảm bảo lệnh xóa được thực thi ngay lập tức trước khi query lại
+        productVariantRepository.flush();
+
+        // 6. Lấy lại danh sách biến thể còn lại của sản phẩm
+        List<ProductVariant> remainingVariants = productVariantRepository.findByProductId(productId);
+
+        // 7. Trả về response cấu trúc đầy đủ
+        return ProductWithVariantsResponse.fromEntity(product, remainingVariants);
+    }
 }
