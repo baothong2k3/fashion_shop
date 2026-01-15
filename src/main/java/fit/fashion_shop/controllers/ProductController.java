@@ -12,6 +12,7 @@ package fit.fashion_shop.controllers;/*
 import fit.fashion_shop.dtos.ApiResponse;
 import fit.fashion_shop.dtos.requests.CreateVariantRequest;
 import fit.fashion_shop.dtos.requests.ProductRequest;
+import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import fit.fashion_shop.services.ProductService;
@@ -86,6 +87,32 @@ public class ProductController {
                     response, // Trả về response chứa Product + Variants
                     httpReq.getRequestURI()
             ));
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi xử lý dữ liệu: " + e.getMessage());
+        }
+    }
+
+    @PutMapping(value = "/variants/{variantId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProductWithVariantsResponse>> updateVariant(
+            @PathVariable Long variantId,
+            @RequestParam("variantInfo") String variantInfoJson, // Nhận JSON string
+            @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
+            HttpServletRequest httpReq) {
+
+        try {
+            // Convert JSON String sang Object
+            UpdateVariantRequest request = objectMapper.readValue(variantInfoJson, UpdateVariantRequest.class);
+
+            ProductWithVariantsResponse response = productService.updateProductVariant(variantId, request, thumbnailFile);
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Cập nhật biến thể thành công",
+                    response,
+                    httpReq.getRequestURI()
+            ));
+
         } catch (Exception e) {
             throw new RuntimeException("Lỗi xử lý dữ liệu: " + e.getMessage());
         }

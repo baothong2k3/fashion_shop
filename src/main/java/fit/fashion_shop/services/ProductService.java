@@ -11,6 +11,7 @@ package fit.fashion_shop.services;/*
 
 import fit.fashion_shop.dtos.requests.CreateVariantRequest;
 import fit.fashion_shop.dtos.requests.ProductRequest;
+import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface ProductService {
+    // Create a new product with thumbnail and images
     ProductResponse createProduct(ProductRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles);
+    // Create variants for an existing product
     ProductWithVariantsResponse createProductVariants(Long productId, List<CreateVariantRequest> requests, List<MultipartFile> files);
+    // Update an existing product variant
+    ProductWithVariantsResponse updateProductVariant(Long variantId, UpdateVariantRequest request, MultipartFile thumbnailFile);
 }
