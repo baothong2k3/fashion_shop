@@ -10,6 +10,7 @@ package fit.fashion_shop.controllers;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
+import fit.fashion_shop.dtos.requests.CreateVariantRequest;
 import fit.fashion_shop.dtos.requests.ProductRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.services.ProductService;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
@@ -57,6 +59,32 @@ public class ProductController {
                     ));
         } catch (Exception e) {
             throw new RuntimeException("Dữ liệu JSON không hợp lệ hoặc lỗi xử lý: " + e.getMessage());
+        }
+    }
+
+    // API thêm variants cho sản phẩm
+    @PostMapping(value = "/{id}/variants", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> addVariants(
+            @PathVariable Long id,
+            @RequestParam("variants") String variantsJson, // Nhận JSON dưới dạng String
+            @RequestPart(value = "files", required = false) List<MultipartFile> files, // Danh sách ảnh upload
+            HttpServletRequest httpReq) {
+
+        try {
+            // 1. Convert String JSON sang List DTO
+            List<CreateVariantRequest> requests = objectMapper.readValue(variantsJson, new TypeReference<>() {});
+
+            // 2. Gọi Service xử lý (truyền thêm files)
+            productService.createProductVariants(id, requests, files);
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Thêm biến thể sản phẩm thành công",
+                    httpReq.getRequestURI()
+            ));
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi xử lý dữ liệu: " + e.getMessage());
         }
     }
 }
