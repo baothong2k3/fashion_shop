@@ -12,6 +12,10 @@ package fit.fashion_shop.repositories;/*
 import fit.fashion_shop.entities.ProductVariant;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
     boolean existsBySku(String sku);
+    // Lấy danh sách biến thể của 1 sản phẩm
+    List<ProductVariant> findByProductId(Long productId);
 }

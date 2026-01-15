@@ -13,6 +13,7 @@ import fit.fashion_shop.dtos.requests.CreateVariantRequest;
 import fit.fashion_shop.dtos.requests.ProductRequest;
 import fit.fashion_shop.dtos.requests.VariantAttributeRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
+import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import fit.fashion_shop.entities.*;
 import fit.fashion_shop.exceptions.DuplicateResourceException;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
@@ -88,7 +89,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public void createProductVariants(Long productId, List<CreateVariantRequest> requests, List<MultipartFile> files) {
+    public ProductWithVariantsResponse createProductVariants(Long productId, List<CreateVariantRequest> requests, List<MultipartFile> files) {
         // 1. Kiểm tra sản phẩm gốc
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
@@ -163,5 +164,10 @@ public class ProductServiceImpl implements ProductService {
             }
             productVariantRepository.save(variant);
         }
+
+        // 4. Lấy lại toàn bộ danh sách Variants (Cũ + Mới) của sản phẩm để trả về
+        List<ProductVariant> allVariants = productVariantRepository.findByProductId(productId);
+
+        return ProductWithVariantsResponse.fromEntity(product, allVariants);
     }
 }
