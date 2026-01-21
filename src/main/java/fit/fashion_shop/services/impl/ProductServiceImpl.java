@@ -174,12 +174,12 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductWithVariantsResponse updateProductVariant(Long variantId, UpdateVariantRequest request, MultipartFile thumbnailFile) {
+    public ProductWithVariantsResponse updateProductVariant(Long variantId, UpdateVariantRequest request, MultipartFile thumbnailFile, List<MultipartFile> attributeFiles) {
         // 1. Tìm biến thể cần update
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể với ID: " + variantId));
 
-        // 2. Kiểm tra SKU (nếu có thay đổi thì không được trùng với SKU khác)
+        // 2. Kiểm tra SKU
         if (request.sku() != null && !request.sku().equals(variant.getSku())) {
             if (productVariantRepository.existsBySku(request.sku())) {
                 throw new DuplicateResourceException("SKU " + request.sku() + " đã tồn tại");
@@ -187,19 +187,17 @@ public class ProductServiceImpl implements ProductService {
             variant.setSku(request.sku());
         }
 
-        // 3. Xử lý Ảnh Thumbnail (Yêu cầu chính: Xóa cũ -> Up mới)
+        // 3. Xử lý Ảnh Thumbnail của biến thể
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
-            // Xóa ảnh cũ trên Cloudinary nếu tồn tại
-            if (variant.getThumbnail() != null) {
+            // Xóa ảnh cũ của biến thể trên Cloudinary nếu tồn tại
+            if (variant.getThumbnail() != null && !variant.getThumbnail().isBlank()) {
                 cloudinaryService.deleteFile(variant.getThumbnail());
             }
-
-            // Upload ảnh mới
             String newThumbnailUrl = cloudinaryService.uploadFile(thumbnailFile, "products/variants");
             variant.setThumbnail(newThumbnailUrl);
         }
 
-        // 4. Cập nhật các trường thông tin cơ bản
+        // 4. Cập nhật thông tin cơ bản
         if (request.priceOverride() != null) {
             variant.setPriceOverride(request.priceOverride());
         }
@@ -207,27 +205,58 @@ public class ProductServiceImpl implements ProductService {
             variant.setStock(request.stock());
         }
 
-        // 5. Cập nhật thuộc tính (Attributes) - Xóa cũ thêm mới để đảm bảo đồng bộ
+        // 5. Cập nhật thuộc tính (Attributes)
         if (request.attributes() != null) {
-            // Xóa các thuộc tính cũ của biến thể này (orphanRemoval = true trong Entity sẽ tự xóa DB)
+            // Xóa các liên kết thuộc tính cũ (orphanRemoval = true sẽ tự xóa DB)
             variant.getVariantAttributes().clear();
 
+            // Helper: Tìm file trong list dựa trên tên file gửi lên từ JSON
+            Function<String, MultipartFile> findFile = (filename) -> {
+                if (attributeFiles == null || filename == null) return null;
+                return attributeFiles.stream()
+                        .filter(f -> filename.equals(f.getOriginalFilename()))
+                        .findFirst()
+                        .orElse(null);
+            };
+
             for (VariantAttributeRequest attrReq : request.attributes()) {
-                // Tìm hoặc tạo Attribute cha (Ví dụ: Color, Size)
+                // Tìm hoặc tạo Attribute cha
                 Attribute attribute = attributeRepository.findByName(attrReq.attributeName())
                         .orElseGet(() -> attributeRepository.save(Attribute.builder().name(attrReq.attributeName()).build()));
 
-                // Tìm hoặc tạo AttributeValue (Giá trị: Red, XL...)
-                // Lưu ý: Logic này chưa hỗ trợ update ảnh riêng cho AttributeValue ở API này để đơn giản hóa
+                // Tìm AttributeValue hiện có hoặc tạo mới builder (chưa save)
                 AttributeValue attributeValue = attributeValueRepository.findByValueAndAttributeId(attrReq.value(), attribute.getId())
-                        .orElseGet(() -> attributeValueRepository.save(
-                                AttributeValue.builder()
-                                        .attribute(attribute)
-                                        .value(attrReq.value())
-                                        .hexCode(attrReq.hexCode()) // Có thể null nếu không gửi
-                                        .build()
-                        ));
+                        .orElse(AttributeValue.builder()
+                                .attribute(attribute)
+                                .value(attrReq.value())
+                                .build());
 
+                // --- LOGIC XỬ LÝ ẢNH ATTRIBUTE ---
+
+                MultipartFile attrFile = findFile.apply(attrReq.imageUrl());
+
+                // Nếu có file mới được upload
+                if (attrFile != null) {
+                    // 1. Kiểm tra và xóa ảnh cũ trên Cloudinary (nếu có)
+                    String oldImageUrl = attributeValue.getImageUrl();
+                    if (oldImageUrl != null && !oldImageUrl.isBlank()) {
+                        cloudinaryService.deleteFile(oldImageUrl); // Gọi hàm deleteFile từ service
+                    }
+
+                    // 2. Upload ảnh mới và gán URL mới
+                    String newAttrImageUrl = cloudinaryService.uploadFile(attrFile, "attributes");
+                    attributeValue.setImageUrl(newAttrImageUrl);
+                }
+
+                // Cập nhật HexCode nếu có
+                if (attrReq.hexCode() != null && !attrReq.hexCode().isBlank()) {
+                    attributeValue.setHexCode(attrReq.hexCode());
+                }
+
+                // Lưu AttributeValue
+                attributeValue = attributeValueRepository.save(attributeValue);
+
+                // Liên kết với Variant
                 ProductVariantAttribute variantAttribute = ProductVariantAttribute.builder()
                         .variant(variant)
                         .attributeValue(attributeValue)
@@ -240,7 +269,7 @@ public class ProductServiceImpl implements ProductService {
         // 6. Lưu biến thể
         productVariantRepository.save(variant);
 
-        // 7. Lấy lại sản phẩm gốc và toàn bộ danh sách biến thể để trả về Response
+        // 7. Trả về response
         Product product = variant.getProduct();
         List<ProductVariant> allVariants = productVariantRepository.findByProductId(product.getId());
 

@@ -24,7 +24,7 @@ public interface ProductService {
     // Create variants for an existing product
     ProductWithVariantsResponse createProductVariants(Long productId, List<CreateVariantRequest> requests, List<MultipartFile> files);
     // Update an existing product variant
-    ProductWithVariantsResponse updateProductVariant(Long variantId, UpdateVariantRequest request, MultipartFile thumbnailFile);
+    ProductWithVariantsResponse updateProductVariant(Long variantId, UpdateVariantRequest request, MultipartFile thumbnailFile, List<MultipartFile> attributeFiles);
     // Delete a product variant
     ProductWithVariantsResponse deleteProductVariant(Long variantId);
 }

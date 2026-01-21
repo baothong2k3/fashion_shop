@@ -96,15 +96,16 @@ public class ProductController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProductWithVariantsResponse>> updateVariant(
             @PathVariable Long variantId,
-            @RequestParam("variantInfo") String variantInfoJson, // Nhận JSON string
+            @RequestParam("variantInfo") String variantInfoJson,
             @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
+            // Nhận danh sách file ảnh cho thuộc tính (nếu có)
+            @RequestPart(value = "attributeFiles", required = false) List<MultipartFile> attributeFiles,
             HttpServletRequest httpReq) {
 
         try {
-            // Convert JSON String sang Object
             UpdateVariantRequest request = objectMapper.readValue(variantInfoJson, UpdateVariantRequest.class);
 
-            ProductWithVariantsResponse response = productService.updateProductVariant(variantId, request, thumbnailFile);
+            ProductWithVariantsResponse response = productService.updateProductVariant(variantId, request, thumbnailFile, attributeFiles);
 
             return ResponseEntity.ok(ApiResponse.success(
                     HttpStatus.OK.value(),
