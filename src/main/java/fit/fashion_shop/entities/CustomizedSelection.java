@@ -9,6 +9,7 @@ package fit.fashion_shop.entities;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.enums.BagType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,8 +31,14 @@ public class CustomizedSelection {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "bag_type", nullable = false)
+    private BagType bagType;
+
     private Long bagColorId; // ID từ AttributeValue
-    private Long shirtColorId;
+
+    @OneToMany(mappedBy = "selection", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CustomizedSelectionShirt> shirts;
 
     @Column(columnDefinition = "TEXT")
     private String letterContent;
