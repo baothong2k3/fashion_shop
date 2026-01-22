@@ -18,7 +18,7 @@ public record CustomizationConfigRequest(
         @NotNull(message = "Loại bước (StepType) không được để trống")
         StepType stepType,
 
-        boolean enabled,
+        Boolean enabled,
 
         @Min(value = 0, message = "Giá cộng thêm không được âm")
         Double extraPrice,
