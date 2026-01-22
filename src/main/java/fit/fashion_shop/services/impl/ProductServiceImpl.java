@@ -9,11 +9,9 @@ package fit.fashion_shop.services.impl;/*
  * @version: 1.0
  */
 
-import fit.fashion_shop.dtos.requests.CreateVariantRequest;
-import fit.fashion_shop.dtos.requests.ProductRequest;
-import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
-import fit.fashion_shop.dtos.requests.VariantAttributeRequest;
+import fit.fashion_shop.dtos.requests.*;
 import fit.fashion_shop.dtos.responses.ProductResponse;
+import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import fit.fashion_shop.entities.*;
 import fit.fashion_shop.exceptions.DuplicateResourceException;
@@ -26,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +40,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductVariantRepository productVariantRepository;
     private final AttributeRepository attributeRepository;
     private final AttributeValueRepository attributeValueRepository;
+    private final ProductCustomizationConfigRepository customizationConfigRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -305,5 +306,50 @@ public class ProductServiceImpl implements ProductService {
 
         // 7. Trả về response cấu trúc đầy đủ
         return ProductWithVariantsResponse.fromEntity(product, remainingVariants);
+    }
+
+    @Override
+    @Transactional
+    public ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests) {
+        // 1. Tìm sản phẩm
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
+
+        // 2. Validate: Sản phẩm phải có flag customizable = true
+        if (!product.isCustomizable()) {
+            throw new OperationNotPermittedException("Sản phẩm này không được đánh dấu là Customizable. Vui lòng cập nhật sản phẩm trước.");
+        }
+
+        List<ProductCustomizationConfig> savedConfigs = new ArrayList<>();
+
+        for (CustomizationConfigRequest req : requests) {
+            // 3. Tìm config cũ hoặc tạo mới
+            ProductCustomizationConfig config = customizationConfigRepository
+                    .findByProductIdAndStepType(productId, req.stepType())
+                    .orElse(ProductCustomizationConfig.builder()
+                            .product(product)
+                            .stepType(req.stepType())
+                            .build());
+
+            // 4. Cập nhật thông tin
+            config.setEnabled(req.enabled());
+            config.setExtraPrice(req.extraPrice() != null ? req.extraPrice() : 0.0);
+
+            // Convert Map -> JSON String
+            if (req.configData() != null) {
+                try {
+                    String jsonString = objectMapper.writeValueAsString(req.configData());
+                    config.setConfigJson(jsonString);
+                } catch (Exception e) {
+                    throw new RuntimeException("Lỗi khi convert configData sang JSON", e);
+                }
+            }
+
+            // 5. Lưu và thêm vào list kết quả
+            savedConfigs.add(customizationConfigRepository.save(config));
+        }
+
+        // 6. Trả về Response bao gồm cả Product và List Config
+        return ProductWithCustomizationResponse.fromEntity(product, savedConfigs, this.objectMapper);
     }
 }

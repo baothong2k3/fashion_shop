@@ -11,12 +11,15 @@ package fit.fashion_shop.controllers;/*
 
 import fit.fashion_shop.dtos.ApiResponse;
 import fit.fashion_shop.dtos.requests.CreateVariantRequest;
+import fit.fashion_shop.dtos.requests.CustomizationConfigRequest;
 import fit.fashion_shop.dtos.requests.ProductRequest;
 import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
+import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import fit.fashion_shop.services.ProductService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -130,6 +133,23 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.success(
                 HttpStatus.OK.value(),
                 "Xóa biến thể thành công",
+                response,
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @PutMapping("/{id}/customization-config")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProductWithCustomizationResponse>> updateCustomizationConfig(
+            @PathVariable Long id,
+            @Valid @RequestBody List<CustomizationConfigRequest> requests,
+            HttpServletRequest httpReq) {
+
+        ProductWithCustomizationResponse response = productService.saveCustomizationConfigs(id, requests);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Cập nhật cấu hình customize thành công",
                 response,
                 httpReq.getRequestURI()
         ));

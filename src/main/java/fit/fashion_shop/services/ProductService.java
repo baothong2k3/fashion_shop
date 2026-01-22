@@ -10,9 +10,11 @@ package fit.fashion_shop.services;/*
  */
 
 import fit.fashion_shop.dtos.requests.CreateVariantRequest;
+import fit.fashion_shop.dtos.requests.CustomizationConfigRequest;
 import fit.fashion_shop.dtos.requests.ProductRequest;
 import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
+import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,4 +29,6 @@ public interface ProductService {
     ProductWithVariantsResponse updateProductVariant(Long variantId, UpdateVariantRequest request, MultipartFile thumbnailFile, List<MultipartFile> attributeFiles);
     // Delete a product variant
     ProductWithVariantsResponse deleteProductVariant(Long variantId);
+    // Save customization configurations for a product
+    ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests);
 }
