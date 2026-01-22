@@ -321,65 +321,51 @@ public class ProductServiceImpl implements ProductService {
             throw new OperationNotPermittedException("Sản phẩm này không được đánh dấu là Customizable. Vui lòng cập nhật sản phẩm trước.");
         }
 
-        List<ProductCustomizationConfig> savedConfigs = new ArrayList<>();
-
+        // 3. Duyệt qua các request để cập nhật hoặc tạo mới
         for (CustomizationConfigRequest req : requests) {
-            // 3. Tìm config cũ (nếu có)
             ProductCustomizationConfig config = customizationConfigRepository
                     .findByProductIdAndStepType(productId, req.stepType())
                     .orElse(null);
 
             if (config == null) {
-                // === TRƯỜNG HỢP TẠO MỚI ===
-                // Nếu chưa có thì tạo mới, dùng giá trị từ request hoặc mặc định nếu null
+                // === TẠO MỚI ===
                 config = ProductCustomizationConfig.builder()
                         .product(product)
                         .stepType(req.stepType())
-                        // Nếu req.enabled null -> mặc định là true
                         .isEnabled(req.enabled() != null ? req.enabled() : true)
-                        // Nếu req.extraPrice null -> mặc định là 0.0
                         .extraPrice(req.extraPrice() != null ? req.extraPrice() : 0.0)
                         .build();
 
-                // Xử lý JSON configData khi tạo mới
                 if (req.configData() != null) {
                     try {
                         String jsonString = objectMapper.writeValueAsString(req.configData());
                         config.setConfigJson(jsonString);
                     } catch (Exception e) {
-                        throw new RuntimeException("Lỗi khi convert configData sang JSON", e);
+                        throw new RuntimeException("Lỗi JSON", e);
                     }
                 }
             } else {
-                // === TRƯỜNG HỢP CẬP NHẬT (Partial Update) ===
-
-                // Chỉ cập nhật Enabled nếu request có gửi lên
-                if (req.enabled() != null) {
-                    config.setEnabled(req.enabled());
-                }
-
-                // Chỉ cập nhật ExtraPrice nếu request có gửi lên
-                if (req.extraPrice() != null) {
-                    config.setExtraPrice(req.extraPrice());
-                }
-
-                // Chỉ cập nhật ConfigJson nếu request có gửi lên data mới
+                // === CẬP NHẬT (Partial Update) ===
+                if (req.enabled() != null) config.setEnabled(req.enabled());
+                if (req.extraPrice() != null) config.setExtraPrice(req.extraPrice());
                 if (req.configData() != null) {
                     try {
                         String jsonString = objectMapper.writeValueAsString(req.configData());
                         config.setConfigJson(jsonString);
                     } catch (Exception e) {
-                        throw new RuntimeException("Lỗi khi convert configData sang JSON", e);
+                        throw new RuntimeException("Lỗi JSON", e);
                     }
                 }
             }
-
-            // 4. Lưu và thêm vào list kết quả
-            savedConfigs.add(customizationConfigRepository.save(config));
+            customizationConfigRepository.save(config);
         }
 
-        // 5. Trả về Response bao gồm cả Product và List Config
-        return ProductWithCustomizationResponse.fromEntity(product, savedConfigs, this.objectMapper);
+        // 4. Lấy lại TOÀN BỘ danh sách config của sản phẩm từ DB
+        // Để đảm bảo trả về cả những step không bị tác động trong request này
+        List<ProductCustomizationConfig> allConfigs = customizationConfigRepository.findByProductId(productId);
+
+        // 5. Trả về Response
+        return ProductWithCustomizationResponse.fromEntity(product, allConfigs, this.objectMapper);
     }
 
     @Override

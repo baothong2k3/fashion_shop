@@ -14,9 +14,11 @@ import fit.fashion_shop.enums.StepType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface ProductCustomizationConfigRepository extends JpaRepository<ProductCustomizationConfig, Long> {
     Optional<ProductCustomizationConfig> findByProductIdAndStepType(Long productId, StepType stepType);
+    List<ProductCustomizationConfig> findByProductId(Long productId);
 }

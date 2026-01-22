@@ -17,6 +17,7 @@ import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
+import fit.fashion_shop.enums.StepType;
 import fit.fashion_shop.services.ProductService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -159,7 +160,7 @@ public class ProductController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCustomizationConfig(
             @PathVariable Long id,
-            @RequestParam("stepType") fit.fashion_shop.enums.StepType stepType,
+            @RequestParam("stepType") StepType stepType,
             HttpServletRequest httpReq) {
 
         productService.deleteCustomizationConfig(id, stepType);
