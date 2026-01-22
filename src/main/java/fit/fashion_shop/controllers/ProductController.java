@@ -154,4 +154,20 @@ public class ProductController {
                 httpReq.getRequestURI()
         ));
     }
+
+    @DeleteMapping("/{id}/customization-config")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteCustomizationConfig(
+            @PathVariable Long id,
+            @RequestParam("stepType") fit.fashion_shop.enums.StepType stepType,
+            HttpServletRequest httpReq) {
+
+        productService.deleteCustomizationConfig(id, stepType);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Xóa cấu hình customize thành công",
+                httpReq.getRequestURI()
+        ));
+    }
 }

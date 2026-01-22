@@ -16,6 +16,7 @@ import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
+import fit.fashion_shop.enums.StepType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -31,4 +32,6 @@ public interface ProductService {
     ProductWithVariantsResponse deleteProductVariant(Long variantId);
     // Save customization configurations for a product
     ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests);
+    // Delete customization configuration for a specific step type
+    void deleteCustomizationConfig(Long productId, StepType stepType);
 }

@@ -14,6 +14,7 @@ import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import fit.fashion_shop.entities.*;
+import fit.fashion_shop.enums.StepType;
 import fit.fashion_shop.exceptions.DuplicateResourceException;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
@@ -379,5 +380,22 @@ public class ProductServiceImpl implements ProductService {
 
         // 5. Trả về Response bao gồm cả Product và List Config
         return ProductWithCustomizationResponse.fromEntity(product, savedConfigs, this.objectMapper);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCustomizationConfig(Long productId, StepType stepType) {
+        // 1. Kiểm tra sản phẩm tồn tại (để báo lỗi rõ ràng nếu sai ID)
+        if (!productRepository.existsById(productId)) {
+            throw new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId);
+        }
+
+        // 2. Tìm config cần xóa
+        ProductCustomizationConfig config = customizationConfigRepository
+                .findByProductIdAndStepType(productId, stepType)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cấu hình cho bước " + stepType + " của sản phẩm này."));
+
+        // 3. Thực hiện xóa
+        customizationConfigRepository.delete(config);
     }
 }
