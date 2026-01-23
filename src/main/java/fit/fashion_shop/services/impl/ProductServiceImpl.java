@@ -22,6 +22,12 @@ import fit.fashion_shop.repositories.*;
 import fit.fashion_shop.services.CloudinaryService;
 import fit.fashion_shop.services.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -383,5 +389,57 @@ public class ProductServiceImpl implements ProductService {
 
         // 3. Thực hiện xóa
         customizationConfigRepository.delete(config);
+    }
+
+    @Override
+    public Page<ProductResponse> getPublicProducts(
+            Boolean newProduct,
+            Boolean featured,
+            Boolean bestSeller,
+            Boolean customizable,
+            String sort,
+            int page,
+            int size) {
+
+        // 1. Xử lý Sắp xếp (Sort)
+        Sort sortObj;
+        if (sort != null) {
+            switch (sort) {
+                case "price_asc" -> sortObj = Sort.by("price").ascending();
+                case "price_desc" -> sortObj = Sort.by("price").descending();
+                case "discount_desc" -> sortObj = Sort.by("discount").descending();
+                default -> sortObj = Sort.by("createdAt").descending(); // Mặc định: Mới nhất lên đầu
+            }
+        } else {
+            sortObj = Sort.by("createdAt").descending();
+        }
+
+        // 2. Tạo Pageable
+        Pageable pageable = PageRequest.of(page, size, sortObj);
+
+        // 3. Tạo Specification (Bộ lọc động)
+        Specification<Product> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (newProduct != null) {
+                predicates.add(cb.equal(root.get("newProduct"), newProduct));
+            }
+            if (featured != null) {
+                predicates.add(cb.equal(root.get("featured"), featured));
+            }
+            if (bestSeller != null) {
+                predicates.add(cb.equal(root.get("bestSeller"), bestSeller));
+            }
+            if (customizable != null) {
+                predicates.add(cb.equal(root.get("customizable"), customizable));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // 4. Truy vấn và map sang DTO
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+
+        return productPage.map(ProductResponse::fromEntity);
     }
 }

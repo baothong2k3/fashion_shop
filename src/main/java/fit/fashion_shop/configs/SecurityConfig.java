@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/categories/**").permitAll()
+                        .requestMatchers("/api/products/**").permitAll()
                         // Cho phép các dispatcher types nội bộ (Forward, Error)
                         .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
                         .anyRequest().authenticated()
