@@ -14,6 +14,7 @@ import fit.fashion_shop.dtos.requests.CategoryUpdateRequest;
 import fit.fashion_shop.dtos.responses.CategoryResponse;
 import fit.fashion_shop.dtos.responses.CategoryTreeResponse;
 import fit.fashion_shop.entities.Category;
+import fit.fashion_shop.exceptions.DuplicateResourceException;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
 import fit.fashion_shop.repositories.CategoryRepository;
@@ -37,18 +38,22 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public CategoryResponse createCategory(CategoryRequest request) {
-        // 1. Xử lý logic phân cấp (Parent-Child)
+        // 1. Kiểm tra slug trùng lặp
+        if (categoryRepository.existsBySlug(request.slug())) {
+            throw new DuplicateResourceException("Slug danh mục '" + request.slug() + "' đã tồn tại.");
+        }
+        // 2. Xử lý logic phân cấp (Parent-Child)
         Category parent = null;
         if (request.parentId() != null) {
             parent = categoryRepository.findById(request.parentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục cha"));
         }
 
-        // 2. Upload ảnh qua service riêng
+        // 3. Upload ảnh qua service riêng
         String imageUrl = cloudinaryService.uploadFile(request.imageFile(), "categories/images");
         String iconUrl = cloudinaryService.uploadFile(request.iconFile(), "categories/icons");
 
-        // 3. Lưu Category
+        // 4. Lưu Category
         Category category = Category.builder()
                 .name(request.name())
                 .slug(request.slug())
@@ -108,8 +113,16 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.name() != null && !request.name().isBlank()) {
             category.setName(request.name().trim());
         }
+        // Xử lý cập nhật slug
         if (request.slug() != null && !request.slug().isBlank()) {
-            category.setSlug(request.slug().trim());
+            String newSlug = request.slug().trim();
+            // Chỉ kiểm tra nếu slug thay đổi
+            if (!newSlug.equals(category.getSlug())) {
+                if (categoryRepository.existsBySlug(newSlug)) {
+                    throw new DuplicateResourceException("Slug danh mục '" + newSlug + "' đã tồn tại.");
+                }
+                category.setSlug(newSlug);
+            }
         }
         if (request.description() != null) {
             category.setDescription(request.description());

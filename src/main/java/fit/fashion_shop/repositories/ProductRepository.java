@@ -20,6 +20,8 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
     // Kiểm tra xem có sản phẩm nào thuộc danh mục này không
     boolean existsByCategoryId(Long categoryId);
+    // Kiểm tra slug đã tồn tại chưa
+    boolean existsBySlug(String slug);
     // Tìm sản phẩm theo slug
     Optional<Product> findBySlug(String slug);
 }

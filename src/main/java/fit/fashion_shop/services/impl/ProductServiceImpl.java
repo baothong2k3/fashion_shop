@@ -56,14 +56,18 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public ProductResponse createProduct(ProductRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles) {
-        // 1. Kiểm tra danh mục tồn tại
+        // 1. Kiểm tra slug trùng lặp
+        if (productRepository.existsBySlug(request.slug())) {
+            throw new DuplicateResourceException("Slug sản phẩm '" + request.slug() + "' đã tồn tại.");
+        }
+        // 2. Kiểm tra danh mục tồn tại
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
 
-        // 2. Upload thumbnail lên Cloudinary
+        // 3. Upload thumbnail lên Cloudinary
         String thumbnailUrl = cloudinaryService.uploadFile(thumbnailFile, "products/thumbnails");
 
-        // 3. Upload danh sách ảnh
+        // 4. Upload danh sách ảnh
         List<String> imageUrls = new ArrayList<>();
         if (imageFiles != null && !imageFiles.isEmpty()) {
             for (MultipartFile file : imageFiles) {
@@ -77,7 +81,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        // 3. Tạo Entity Product
+        // 5. Tạo Entity Product
         Product product = Product.builder()
                 .name(request.name())
                 .slug(request.slug())
@@ -95,7 +99,7 @@ public class ProductServiceImpl implements ProductService {
                 .category(category)
                 .build();
 
-        // 4. Lưu và trả về DTO
+        // 6. Lưu và trả về DTO
         return ProductResponse.fromEntity(productRepository.save(product));
     }
 

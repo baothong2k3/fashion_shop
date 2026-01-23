@@ -19,4 +19,6 @@ import java.util.List;
 public interface CategoryRepository extends JpaRepository<Category, Long> {
     // Lấy danh sách danh mục gốc và đang hoạt động, sắp xếp theo thứ tự
     List<Category> findByParentIsNullAndIsActiveTrueOrderBySortOrderAsc();
+    // Kiểm tra slug đã tồn tại chưa
+    boolean existsBySlug(String slug);
 }

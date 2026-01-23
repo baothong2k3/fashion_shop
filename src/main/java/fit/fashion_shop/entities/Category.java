@@ -26,7 +26,10 @@ public class Category {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false, unique = true)
     private String slug;
     private String description;
     private String image;
