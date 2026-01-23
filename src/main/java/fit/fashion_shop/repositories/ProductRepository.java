@@ -14,8 +14,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
     // Kiểm tra xem có sản phẩm nào thuộc danh mục này không
     boolean existsByCategoryId(Long categoryId);
+    // Tìm sản phẩm theo slug
+    Optional<Product> findBySlug(String slug);
 }

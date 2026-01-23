@@ -13,6 +13,7 @@ import fit.fashion_shop.dtos.requests.CreateVariantRequest;
 import fit.fashion_shop.dtos.requests.CustomizationConfigRequest;
 import fit.fashion_shop.dtos.requests.ProductRequest;
 import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
+import fit.fashion_shop.dtos.responses.ProductDetailResponse;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
@@ -51,4 +52,11 @@ public interface ProductService {
             int page,
             int size
     );
+
+    // Get product details by ID
+    ProductDetailResponse getProductDetail(Long id);
+
+    // Get product details by slug
+    ProductDetailResponse getProductDetailBySlug(String slug);
+
 }

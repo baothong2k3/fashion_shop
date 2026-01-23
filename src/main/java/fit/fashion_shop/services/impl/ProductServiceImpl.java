@@ -10,6 +10,7 @@ package fit.fashion_shop.services.impl;/*
  */
 
 import fit.fashion_shop.dtos.requests.*;
+import fit.fashion_shop.dtos.responses.ProductDetailResponse;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
@@ -18,6 +19,7 @@ import fit.fashion_shop.enums.StepType;
 import fit.fashion_shop.exceptions.DuplicateResourceException;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
+import fit.fashion_shop.helpers.ProductHelper;
 import fit.fashion_shop.repositories.*;
 import fit.fashion_shop.services.CloudinaryService;
 import fit.fashion_shop.services.ProductService;
@@ -49,6 +51,7 @@ public class ProductServiceImpl implements ProductService {
     private final AttributeValueRepository attributeValueRepository;
     private final ProductCustomizationConfigRepository customizationConfigRepository;
     private final ObjectMapper objectMapper;
+    private final ProductHelper productHelper;
 
     @Override
     @Transactional
@@ -441,5 +444,25 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> productPage = productRepository.findAll(spec, pageable);
 
         return productPage.map(ProductResponse::fromEntity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductDetailResponse getProductDetail(Long id) {
+        // 1. Tìm sản phẩm
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
+
+        return productHelper.buildProductDetailResponse(product);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductDetailResponse getProductDetailBySlug(String slug) {
+        // 1. Tìm sản phẩm theo slug
+        Product product = productRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với slug: " + slug));
+
+        return productHelper.buildProductDetailResponse(product);
     }
 }

@@ -10,6 +10,7 @@ package fit.fashion_shop.controllers;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
+import fit.fashion_shop.dtos.responses.ProductDetailResponse;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.services.ProductService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,6 +46,38 @@ public class ProductPublicController {
                 HttpStatus.OK.value(),
                 "Lấy danh sách sản phẩm thành công",
                 productPage,
+                httpReq.getRequestURI()
+        ));
+    }
+
+    // API lấy chi tiết theo ID: /api/products/1
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ProductDetailResponse>> getProductById(
+            @PathVariable Long id,
+            HttpServletRequest httpReq) {
+
+        ProductDetailResponse response = productService.getProductDetail(id);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Lấy chi tiết sản phẩm thành công",
+                response,
+                httpReq.getRequestURI()
+        ));
+    }
+
+    // API lấy chi tiết theo Slug: /api/products/slug/ao-thun-mua-he
+    @GetMapping("/slug/{slug}")
+    public ResponseEntity<ApiResponse<ProductDetailResponse>> getProductBySlug(
+            @PathVariable String slug,
+            HttpServletRequest httpReq) {
+
+        ProductDetailResponse response = productService.getProductDetailBySlug(slug);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Lấy chi tiết sản phẩm thành công",
+                response,
                 httpReq.getRequestURI()
         ));
     }
