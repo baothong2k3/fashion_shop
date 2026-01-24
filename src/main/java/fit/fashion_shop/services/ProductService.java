@@ -9,10 +9,7 @@ package fit.fashion_shop.services;/*
  * @version: 1.0
  */
 
-import fit.fashion_shop.dtos.requests.CreateVariantRequest;
-import fit.fashion_shop.dtos.requests.CustomizationConfigRequest;
-import fit.fashion_shop.dtos.requests.ProductRequest;
-import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
+import fit.fashion_shop.dtos.requests.*;
 import fit.fashion_shop.dtos.responses.ProductDetailResponse;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
@@ -58,5 +55,6 @@ public interface ProductService {
 
     // Get product details by slug
     ProductDetailResponse getProductDetailBySlug(String slug);
-
+    // Update an existing product with thumbnail and images
+    ProductResponse updateProduct(Long id, ProductUpdateRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles);
 }

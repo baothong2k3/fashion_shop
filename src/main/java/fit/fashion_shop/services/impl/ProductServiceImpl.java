@@ -469,4 +469,112 @@ public class ProductServiceImpl implements ProductService {
 
         return productHelper.buildProductDetailResponse(product);
     }
+
+    // ... các import giữ nguyên
+
+    @Override
+    @Transactional
+    public ProductResponse updateProduct(Long id, ProductUpdateRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles) {
+        // 1. Tìm sản phẩm cần update
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
+
+        // 2. Cập nhật Slug (nếu có thay đổi)
+        if (request.slug() != null && !request.slug().isBlank()) {
+            String newSlug = request.slug().trim();
+            if (!newSlug.equals(product.getSlug())) {
+                // Kiểm tra trùng lặp với sản phẩm KHÁC
+                if (productRepository.existsBySlug(newSlug)) {
+                    throw new DuplicateResourceException("Slug sản phẩm '" + newSlug + "' đã tồn tại.");
+                }
+                product.setSlug(newSlug);
+            }
+        }
+
+        // 3. Cập nhật Danh mục (Category)
+        if (request.categoryId() != null) {
+            if (!request.categoryId().equals(product.getCategory().getId())) {
+                Category newCategory = categoryRepository.findById(request.categoryId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + request.categoryId()));
+                product.setCategory(newCategory);
+            }
+        }
+
+        // 4. Xử lý Thumbnail (Nếu có upload file mới)
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            // Xóa ảnh cũ trên Cloudinary
+            if (product.getThumbnail() != null) {
+                cloudinaryService.deleteFile(product.getThumbnail());
+            }
+            // Upload ảnh mới
+            String newThumbnailUrl = cloudinaryService.uploadFile(thumbnailFile, "products/thumbnails");
+            product.setThumbnail(newThumbnailUrl);
+        }
+
+        // 5. Xử lý danh sách ảnh phụ (Images) (Nếu có upload list mới)
+        // Logic: Nếu gửi list ảnh mới -> Xóa HẾT ảnh cũ trên Cloud và thay bằng list mới.
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            // Xóa toàn bộ ảnh cũ trên Cloudinary
+            if (product.getImages() != null) {
+                for (String oldImageUrl : product.getImages()) {
+                    cloudinaryService.deleteFile(oldImageUrl);
+                }
+                product.getImages().clear(); // Xóa list trong DB
+            }
+
+            // Upload list ảnh mới
+            List<String> newImageUrls = new ArrayList<>();
+            for (MultipartFile file : imageFiles) {
+                if (file != null && !file.isEmpty()) {
+                    String url = cloudinaryService.uploadFile(file, "products/images");
+                    if (url != null) {
+                        newImageUrls.add(url);
+                    }
+                }
+            }
+            product.setImages(newImageUrls);
+        }
+
+        // 6. Partial Update các trường thông tin cơ bản
+        if (request.name() != null && !request.name().isBlank()) product.setName(request.name());
+        if (request.description() != null) product.setDescription(request.description());
+        if (request.price() != null) product.setPrice(request.price());
+        if (request.salePrice() != null) product.setSalePrice(request.salePrice());
+        if (request.discount() != null) product.setDiscount(request.discount());
+        if (request.stock() != null) product.setStock(request.stock());
+        if (request.newProduct() != null) product.setNewProduct(request.newProduct());
+        if (request.featured() != null) product.setFeatured(request.featured());
+        if (request.bestSeller() != null) product.setBestSeller(request.bestSeller());
+
+        // Xử lý ràng buộc khi thay đổi cờ Customizable
+        if (request.customizable() != null) {
+            boolean isCurrentlyCustomizable = product.isCustomizable();
+            boolean newCustomizableState = request.customizable();
+
+            // Chỉ xử lý nếu có sự thay đổi trạng thái (Normal <-> Customizable)
+            if (isCurrentlyCustomizable != newCustomizableState) {
+
+                // Kiểm tra 1: Nếu sản phẩm đang có Variants (dù là SP thường hay lỗi dữ liệu)
+                // Truy cập vào list variants sẽ trigger lazy load trong transaction
+                if (product.getVariants() != null && !product.getVariants().isEmpty()) {
+                    throw new OperationNotPermittedException(
+                            "Không thể thay đổi loại sản phẩm vì đang tồn tại Biến thể (Variants). Vui lòng xóa tất cả biến thể trước khi chuyển đổi."
+                    );
+                }
+
+                // Kiểm tra 2: Nếu sản phẩm đang có Customization Configs
+                if (product.getCustomizationConfigs() != null && !product.getCustomizationConfigs().isEmpty()) {
+                    throw new OperationNotPermittedException(
+                            "Không thể thay đổi loại sản phẩm vì đang tồn tại Cấu hình thiết kế (Customization Configs). Vui lòng xóa cấu hình trước khi chuyển đổi."
+                    );
+                }
+
+                // Nếu sạch dữ liệu con thì mới cho phép đổi
+                product.setCustomizable(newCustomizableState);
+            }
+        }
+
+        // 7. Lưu và trả về kết quả
+        return ProductResponse.fromEntity(productRepository.save(product));
+    }
 }

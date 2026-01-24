@@ -10,10 +10,7 @@ package fit.fashion_shop.controllers;/*
  */
 
 import fit.fashion_shop.dtos.ApiResponse;
-import fit.fashion_shop.dtos.requests.CreateVariantRequest;
-import fit.fashion_shop.dtos.requests.CustomizationConfigRequest;
-import fit.fashion_shop.dtos.requests.ProductRequest;
-import fit.fashion_shop.dtos.requests.UpdateVariantRequest;
+import fit.fashion_shop.dtos.requests.*;
 import fit.fashion_shop.dtos.responses.ProductResponse;
 import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
 import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
@@ -170,5 +167,37 @@ public class ProductController {
                 "Xóa cấu hình customize thành công",
                 httpReq.getRequestURI()
         ));
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
+            @PathVariable Long id,
+            @RequestParam(value = "productInfo", required = false) String productInfoJson, // Cho phép null nếu chỉ muốn up ảnh
+            @RequestPart(value = "thumbnailFile", required = false) MultipartFile thumbnailFile,
+            @RequestPart(value = "imageFiles", required = false) List<MultipartFile> imageFiles,
+            HttpServletRequest httpReq) {
+
+        try {
+            ProductUpdateRequest request;
+            if (productInfoJson != null && !productInfoJson.isBlank()) {
+                request = objectMapper.readValue(productInfoJson, ProductUpdateRequest.class);
+            } else {
+                // Nếu không gửi JSON, tạo object rỗng để code service không bị NullPointerException khi gọi getter
+                request = new ProductUpdateRequest(null, null, null, null, null, null, null, null, null, null, null, null);
+            }
+
+            ProductResponse response = productService.updateProduct(id, request, thumbnailFile, imageFiles);
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Cập nhật sản phẩm thành công",
+                    response,
+                    httpReq.getRequestURI()
+            ));
+
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi xử lý dữ liệu: " + e.getMessage());
+        }
     }
 }
