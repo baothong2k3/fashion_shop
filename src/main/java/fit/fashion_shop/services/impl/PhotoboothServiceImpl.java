@@ -22,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class PhotoboothServiceImpl implements PhotoboothService {
@@ -88,5 +90,14 @@ public class PhotoboothServiceImpl implements PhotoboothService {
 
         // 5. Lưu và trả về kết quả (Hibernate tự động update nhờ @Transactional)
         return PhotoboothThemeResponse.fromEntity(photoboothThemeRepository.save(theme));
+    }
+
+    @Override
+    public List<PhotoboothThemeResponse> getAllThemes() {
+        // Lấy tất cả từ DB và map sang DTO
+        return photoboothThemeRepository.findAll()
+                .stream()
+                .map(PhotoboothThemeResponse::fromEntity)
+                .toList();
     }
 }
