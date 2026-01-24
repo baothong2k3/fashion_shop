@@ -11,6 +11,7 @@ package fit.fashion_shop.controllers;/*
 
 import fit.fashion_shop.dtos.ApiResponse;
 import fit.fashion_shop.dtos.requests.PhotoboothThemeRequest;
+import fit.fashion_shop.dtos.requests.PhotoboothThemeUpdateRequest;
 import fit.fashion_shop.dtos.responses.PhotoboothThemeResponse;
 import fit.fashion_shop.services.PhotoboothService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,10 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin/photobooth-themes")
@@ -47,5 +45,22 @@ public class PhotoboothController {
                         response,
                         httpReq.getRequestURI()
                 ));
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PhotoboothThemeResponse>> updateTheme(
+            @PathVariable Long id,
+            @Valid @ModelAttribute PhotoboothThemeUpdateRequest request,
+            HttpServletRequest httpReq) {
+
+        PhotoboothThemeResponse response = photoboothService.updateTheme(id, request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Cập nhật chủ đề Photobooth thành công",
+                response,
+                httpReq.getRequestURI()
+        ));
     }
 }

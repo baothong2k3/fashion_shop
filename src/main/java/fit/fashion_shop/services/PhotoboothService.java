@@ -10,8 +10,13 @@ package fit.fashion_shop.services;/*
  */
 
 import fit.fashion_shop.dtos.requests.PhotoboothThemeRequest;
+import fit.fashion_shop.dtos.requests.PhotoboothThemeUpdateRequest;
 import fit.fashion_shop.dtos.responses.PhotoboothThemeResponse;
+
+import java.util.List;
 
 public interface PhotoboothService {
     PhotoboothThemeResponse createTheme(PhotoboothThemeRequest request);
+    PhotoboothThemeResponse updateTheme(Long id, PhotoboothThemeUpdateRequest request);
+    List<PhotoboothThemeResponse> getAllThemes();
 }
