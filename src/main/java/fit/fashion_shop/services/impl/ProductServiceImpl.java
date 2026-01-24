@@ -470,8 +470,6 @@ public class ProductServiceImpl implements ProductService {
         return productHelper.buildProductDetailResponse(product);
     }
 
-    // ... các import giữ nguyên
-
     @Override
     @Transactional
     public ProductResponse updateProduct(Long id, ProductUpdateRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles) {
