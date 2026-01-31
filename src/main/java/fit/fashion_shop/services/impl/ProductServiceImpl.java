@@ -37,6 +37,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 @Service
@@ -324,60 +325,82 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional
-    public ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests) {
+    public ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests, List<MultipartFile> files) {
         // 1. Tìm sản phẩm
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
 
-        // 2. Validate: Sản phẩm phải có flag customizable = true
         if (!product.isCustomizable()) {
-            throw new OperationNotPermittedException("Sản phẩm này không được đánh dấu là Customizable. Vui lòng cập nhật sản phẩm trước.");
+            throw new OperationNotPermittedException("Sản phẩm này không được đánh dấu là Customizable.");
         }
 
-        // 3. Duyệt qua các request để cập nhật hoặc tạo mới
+        // Helper để tìm file trong list upload dựa vào tên (filename)
+        Function<String, MultipartFile> findFile = (filename) -> {
+            if (files == null) return null;
+            return files.stream()
+                    .filter(f -> filename.equals(f.getOriginalFilename()))
+                    .findFirst()
+                    .orElse(null);
+        };
+
+        // 2. Duyệt qua các request
         for (CustomizationConfigRequest req : requests) {
             ProductCustomizationConfig config = customizationConfigRepository
                     .findByProductIdAndStepType(productId, req.stepType())
                     .orElse(null);
 
+            // XỬ LÝ RIÊNG CHO BƯỚC SHIRT (UPLOAD ẢNH MẪU MÀU SẮC)
+            if (req.stepType() == StepType.SHIRT && req.configData() != null) {
+                Map<String, Object> data = req.configData();
+                // Xử lý phần colors
+                if (data.containsKey("colors") && data.get("colors") instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> colors = (List<Map<String, Object>>) data.get("colors");
+
+                    for (Map<String, Object> color : colors) {
+                        String imgRef = (String) color.get("image");
+
+                        // Nếu imgRef không phải URL (không bắt đầu bằng http) -> Coi là tên file cần upload
+                        if (imgRef != null && !imgRef.startsWith("http")) {
+                            MultipartFile fileToUpload = findFile.apply(imgRef);
+                            if (fileToUpload != null) {
+                                // Upload lên Cloudinary
+                                String uploadedUrl = cloudinaryService.uploadFile(fileToUpload, "customization/shirts");
+                                // Cập nhật lại URL vào map
+                                color.put("image", uploadedUrl);
+                            }
+                        }
+                    }
+                }
+            }
+
             if (config == null) {
-                // === TẠO MỚI ===
+                // Create New
                 config = ProductCustomizationConfig.builder()
                         .product(product)
                         .stepType(req.stepType())
                         .isEnabled(req.enabled() != null ? req.enabled() : true)
                         .extraPrice(req.extraPrice() != null ? req.extraPrice() : 0.0)
                         .build();
-
-                if (req.configData() != null) {
-                    try {
-                        String jsonString = objectMapper.writeValueAsString(req.configData());
-                        config.setConfigJson(jsonString);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Lỗi JSON", e);
-                    }
-                }
             } else {
-                // === CẬP NHẬT (Partial Update) ===
+                // Update
                 if (req.enabled() != null) config.setEnabled(req.enabled());
                 if (req.extraPrice() != null) config.setExtraPrice(req.extraPrice());
-                if (req.configData() != null) {
-                    try {
-                        String jsonString = objectMapper.writeValueAsString(req.configData());
-                        config.setConfigJson(jsonString);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Lỗi JSON", e);
-                    }
+            }
+
+            // Lưu JSON Config
+            if (req.configData() != null) {
+                try {
+                    String jsonString = objectMapper.writeValueAsString(req.configData());
+                    config.setConfigJson(jsonString);
+                } catch (Exception e) {
+                    throw new RuntimeException("Lỗi JSON", e);
                 }
             }
             customizationConfigRepository.save(config);
         }
 
-        // 4. Lấy lại TOÀN BỘ danh sách config của sản phẩm từ DB
-        // Để đảm bảo trả về cả những step không bị tác động trong request này
         List<ProductCustomizationConfig> allConfigs = customizationConfigRepository.findByProductId(productId);
-
-        // 5. Trả về Response
         return ProductWithCustomizationResponse.fromEntity(product, allConfigs, this.objectMapper);
     }
 

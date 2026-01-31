@@ -34,7 +34,7 @@ public interface ProductService {
     ProductWithVariantsResponse deleteProductVariant(Long variantId);
 
     // Save customization configurations for a product
-    ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests);
+    ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests, List<MultipartFile> files);
 
     // Delete customization configuration for a specific step type
     void deleteCustomizationConfig(Long productId, StepType stepType);
@@ -55,6 +55,7 @@ public interface ProductService {
 
     // Get product details by slug
     ProductDetailResponse getProductDetailBySlug(String slug);
+
     // Update an existing product with thumbnail and images
     ProductResponse updateProduct(Long id, ProductUpdateRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles);
 }

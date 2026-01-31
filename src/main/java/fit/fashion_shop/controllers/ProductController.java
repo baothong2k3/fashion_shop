@@ -17,7 +17,6 @@ import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
 import fit.fashion_shop.enums.StepType;
 import fit.fashion_shop.services.ProductService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -136,21 +135,32 @@ public class ProductController {
         ));
     }
 
-    @PutMapping("/{id}/customization-config")
+    @PutMapping(value = "/{id}/customization-config", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ProductWithCustomizationResponse>> updateCustomizationConfig(
             @PathVariable Long id,
-            @Valid @RequestBody List<CustomizationConfigRequest> requests,
+            // Nhận JSON dưới dạng String để parse thủ công
+            @RequestParam("configs") String configsJson,
+            // Danh sách file ảnh (nếu có update ảnh màu áo)
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
             HttpServletRequest httpReq) {
 
-        ProductWithCustomizationResponse response = productService.saveCustomizationConfigs(id, requests);
+        try {
+            // 1. Convert String JSON sang List DTO
+            List<CustomizationConfigRequest> requests = objectMapper.readValue(configsJson, new TypeReference<>() {});
 
-        return ResponseEntity.ok(ApiResponse.success(
-                HttpStatus.OK.value(),
-                "Cập nhật cấu hình customize thành công",
-                response,
-                httpReq.getRequestURI()
-        ));
+            // 2. Gọi Service xử lý
+            ProductWithCustomizationResponse response = productService.saveCustomizationConfigs(id, requests, files);
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    HttpStatus.OK.value(),
+                    "Cập nhật cấu hình customize thành công",
+                    response,
+                    httpReq.getRequestURI()
+            ));
+        } catch (Exception e) {
+            throw new RuntimeException("Dữ liệu JSON không hợp lệ hoặc lỗi xử lý: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}/customization-config")
