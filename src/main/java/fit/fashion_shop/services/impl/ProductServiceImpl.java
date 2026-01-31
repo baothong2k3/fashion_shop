@@ -334,7 +334,7 @@ public class ProductServiceImpl implements ProductService {
             throw new OperationNotPermittedException("Sản phẩm này không được đánh dấu là Customizable.");
         }
 
-        // Helper để tìm file trong list upload dựa vào tên (filename)
+        // Helper để tìm file trong list upload dựa vào tên (filename) được gửi từ client
         Function<String, MultipartFile> findFile = (filename) -> {
             if (files == null) return null;
             return files.stream()
@@ -343,39 +343,83 @@ public class ProductServiceImpl implements ProductService {
                     .orElse(null);
         };
 
-        // 2. Duyệt qua các request
+        // 2. Duyệt qua các request cấu hình từng bước
         for (CustomizationConfigRequest req : requests) {
             ProductCustomizationConfig config = customizationConfigRepository
                     .findByProductIdAndStepType(productId, req.stepType())
                     .orElse(null);
 
-            // XỬ LÝ RIÊNG CHO BƯỚC SHIRT (UPLOAD ẢNH MẪU MÀU SẮC)
-            if (req.stepType() == StepType.SHIRT && req.configData() != null) {
+            // --- XỬ LÝ ẢNH CHO SHIRT VÀ BAG (UPLOAD & XÓA ẢNH CŨ) ---
+            if ((req.stepType() == StepType.SHIRT || req.stepType() == StepType.BAG) && req.configData() != null) {
+
+                // [Bước 1] Thu thập danh sách URL ảnh CŨ từ database (nếu có)
+                java.util.Set<String> oldImageUrls = new java.util.HashSet<>();
+                if (config != null && config.getConfigJson() != null) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> oldData = objectMapper.readValue(config.getConfigJson(), Map.class);
+                        if (oldData.containsKey("colors") && oldData.get("colors") instanceof List) {
+                            @SuppressWarnings("unchecked")
+                            List<Map<String, Object>> oldColors = (List<Map<String, Object>>) oldData.get("colors");
+                            for (Map<String, Object> c : oldColors) {
+                                Object imgObj = c.get("image");
+                                if (imgObj instanceof String && ((String) imgObj).startsWith("http")) {
+                                    oldImageUrls.add((String) imgObj);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Bỏ qua lỗi parse JSON cũ, coi như không có ảnh cũ để xóa
+                    }
+                }
+
+                // [Bước 2] Xử lý ảnh MỚI và xác định danh sách ảnh cần GIỮ LẠI
+                java.util.Set<String> keptImageUrls = new java.util.HashSet<>();
                 Map<String, Object> data = req.configData();
-                // Xử lý phần colors
+
                 if (data.containsKey("colors") && data.get("colors") instanceof List) {
                     @SuppressWarnings("unchecked")
                     List<Map<String, Object>> colors = (List<Map<String, Object>>) data.get("colors");
 
+                    // Xác định folder lưu trữ trên Cloudinary
+                    String uploadFolder = (req.stepType() == StepType.SHIRT) ? "customization/shirts" : "customization/bags";
+
                     for (Map<String, Object> color : colors) {
                         String imgRef = (String) color.get("image");
 
-                        // Nếu imgRef không phải URL (không bắt đầu bằng http) -> Coi là tên file cần upload
-                        if (imgRef != null && !imgRef.startsWith("http")) {
-                            MultipartFile fileToUpload = findFile.apply(imgRef);
-                            if (fileToUpload != null) {
-                                // Upload lên Cloudinary
-                                String uploadedUrl = cloudinaryService.uploadFile(fileToUpload, "customization/shirts");
-                                // Cập nhật lại URL vào map
-                                color.put("image", uploadedUrl);
+                        if (imgRef != null) {
+                            // Trường hợp 1: Là tên file -> Cần upload mới
+                            if (!imgRef.startsWith("http")) {
+                                MultipartFile fileToUpload = findFile.apply(imgRef);
+                                if (fileToUpload != null) {
+                                    // Upload lên Cloudinary
+                                    String uploadedUrl = cloudinaryService.uploadFile(fileToUpload, uploadFolder);
+                                    // Cập nhật lại giá trị "image" trong Map thành URL thực tế
+                                    color.put("image", uploadedUrl);
+                                    // Thêm vào danh sách giữ lại
+                                    keptImageUrls.add(uploadedUrl);
+                                }
+                            }
+                            // Trường hợp 2: Đã là URL (giữ nguyên ảnh cũ) -> Thêm vào danh sách giữ lại
+                            else {
+                                keptImageUrls.add(imgRef);
                             }
                         }
                     }
                 }
+
+                // [Bước 3] Xóa các ảnh cũ KHÔNG còn nằm trong danh sách giữ lại
+                // (Old - Kept = Deleted)
+                oldImageUrls.removeAll(keptImageUrls);
+                for (String urlToDelete : oldImageUrls) {
+                    // Gọi service xóa ảnh trên Cloudinary
+                    cloudinaryService.deleteFile(urlToDelete);
+                }
             }
+            // ------------------------------------------
 
             if (config == null) {
-                // Create New
+                // Nếu chưa có config cho bước này -> Tạo mới
                 config = ProductCustomizationConfig.builder()
                         .product(product)
                         .stepType(req.stepType())
@@ -383,23 +427,26 @@ public class ProductServiceImpl implements ProductService {
                         .extraPrice(req.extraPrice() != null ? req.extraPrice() : 0.0)
                         .build();
             } else {
-                // Update
+                // Nếu đã có -> Cập nhật các trường cơ bản
                 if (req.enabled() != null) config.setEnabled(req.enabled());
                 if (req.extraPrice() != null) config.setExtraPrice(req.extraPrice());
             }
 
-            // Lưu JSON Config
+            // Lưu dữ liệu cấu hình (Map) thành chuỗi JSON vào database
             if (req.configData() != null) {
                 try {
                     String jsonString = objectMapper.writeValueAsString(req.configData());
                     config.setConfigJson(jsonString);
                 } catch (Exception e) {
-                    throw new RuntimeException("Lỗi JSON", e);
+                    throw new RuntimeException("Lỗi khi chuyển đổi dữ liệu config sang JSON", e);
                 }
             }
+
+            // Lưu xuống DB
             customizationConfigRepository.save(config);
         }
 
+        // 3. Trả về kết quả mới nhất
         List<ProductCustomizationConfig> allConfigs = customizationConfigRepository.findByProductId(productId);
         return ProductWithCustomizationResponse.fromEntity(product, allConfigs, this.objectMapper);
     }
