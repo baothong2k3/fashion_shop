@@ -9,15 +9,13 @@ package fit.fashion_shop.services.impl;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.dtos.requests.AddToCartCustomizedRequest;
 import fit.fashion_shop.dtos.requests.AddToCartRequest;
 import fit.fashion_shop.dtos.responses.CartResponse;
-import fit.fashion_shop.entities.Cart;
-import fit.fashion_shop.entities.CartItem;
-import fit.fashion_shop.entities.Product;
-import fit.fashion_shop.entities.ProductVariant;
-import fit.fashion_shop.entities.User;
+import fit.fashion_shop.entities.*;
 import fit.fashion_shop.exceptions.OperationNotPermittedException;
 import fit.fashion_shop.exceptions.ResourceNotFoundException;
+import fit.fashion_shop.helpers.CustomizationHelper;
 import fit.fashion_shop.repositories.CartItemRepository;
 import fit.fashion_shop.repositories.CartRepository;
 import fit.fashion_shop.repositories.ProductRepository;
@@ -27,8 +25,10 @@ import fit.fashion_shop.services.CartService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -40,6 +40,7 @@ public class CartServiceImpl implements CartService {
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
     private final UserRepository userRepository;
+    private final CustomizationHelper customizationHelper;
 
     @Override
     @Transactional
@@ -133,5 +134,45 @@ public class CartServiceImpl implements CartService {
     public CartResponse getMyCart(Long userId) {
         Cart cart = cartRepository.findByUserId(userId).orElse(null);
         return CartResponse.fromEntity(cart);
+    }
+
+    @Override
+    @Transactional
+    public CartResponse addToCartCustomized(Long userId, AddToCartCustomizedRequest request, List<MultipartFile> photoFiles) {
+        // 1. Tìm/Tạo giỏ hàng
+        Cart cart = cartRepository.findByUserId(userId).orElseGet(() -> {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+            return cartRepository.save(Cart.builder().user(user).items(new ArrayList<>()).build());
+        });
+
+        // 2. Validate Sản phẩm
+        Product product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+        if (!product.isCustomizable()) {
+            throw new OperationNotPermittedException("Sản phẩm này không hỗ trợ customize. Dùng API thường.");
+        }
+
+        if (product.getStock() < request.quantity()) {
+            throw new OperationNotPermittedException("Hết hàng.");
+        }
+
+        // 3. Sử dụng Helper để xử lý toàn bộ logic Customize (Validate JSON, tính giá, upload ảnh)
+        CustomizedSelection selection = customizationHelper.processCustomization(product, request, photoFiles);
+
+        // 4. Tạo CartItem
+        // Lưu ý: Item customize luôn tạo dòng mới, không cộng dồn số lượng vì mỗi thiết kế là duy nhất
+        CartItem newItem = CartItem.builder()
+                .cart(cart)
+                .product(product)
+                .quantity(request.quantity())
+                .selection(selection) // Gắn selection vào item
+                .build();
+
+        cartItemRepository.save(newItem);
+        cart.getItems().add(newItem);
+
+        return CartResponse.fromEntity(cartRepository.findById(cart.getId()).orElse(cart));
     }
 }

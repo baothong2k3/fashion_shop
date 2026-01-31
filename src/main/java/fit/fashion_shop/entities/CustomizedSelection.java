@@ -15,6 +15,12 @@ import lombok.*;
 
 import java.util.List;
 
+import fit.fashion_shop.enums.BagType;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.List;
+
 @Entity
 @Table(name = "customized_selections")
 @Getter
@@ -35,7 +41,10 @@ public class CustomizedSelection {
     @Column(name = "bag_type", nullable = false)
     private BagType bagType;
 
-    private Long bagColorId; // ID từ AttributeValue
+    // --- Lưu trực tiếp thông tin màu túi ---
+    private String bagColorName;
+    private String bagColorCode;
+    private String bagColorImage;
 
     @OneToMany(mappedBy = "selection", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CustomizedSelectionShirt> shirts;
@@ -43,12 +52,14 @@ public class CustomizedSelection {
     @Column(columnDefinition = "TEXT")
     private String letterContent;
 
+    // Vẫn giữ liên kết Theme vì Theme là Entity quản lý bởi Admin
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "photobooth_theme_id")
     private PhotoboothTheme photoboothTheme;
 
+    // Tổng giá trị của riêng phần Customize (Extra fees)
     private Double totalCustomPrice;
 
-    @OneToMany(mappedBy = "selection", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "selection", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CustomizedSelectionPhoto> photos;
 }

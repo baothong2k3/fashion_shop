@@ -13,9 +13,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "customized_selection_shirts", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"selection_id", "shirt_index"})
-})
+@Table(name = "customized_selection_shirts")
 @Getter
 @Setter
 @Builder
@@ -29,18 +27,14 @@ public class CustomizedSelectionShirt {
     @Column(name = "shirt_index", nullable = false)
     private int shirtIndex; // 1 hoặc 2
 
-    // Quan hệ N-1 với Selection
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "selection_id", nullable = false)
     private CustomizedSelection selection;
 
-    // Size của áo (Link tới AttributeValue)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "size_attribute_value_id", nullable = false)
-    private AttributeValue size;
+    // --- Lưu trực tiếp giá trị thay vì liên kết AttributeValue ---
+    private String size;
 
-    // Màu của áo (Link tới AttributeValue)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "color_attribute_value_id", nullable = false)
-    private AttributeValue color;
+    private String colorName;
+    private String colorCode;
+    private String colorImage;
 }

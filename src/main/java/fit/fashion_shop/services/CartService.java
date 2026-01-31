@@ -9,10 +9,15 @@ package fit.fashion_shop.services;/*
  * @version: 1.0
  */
 
+import fit.fashion_shop.dtos.requests.AddToCartCustomizedRequest;
 import fit.fashion_shop.dtos.requests.AddToCartRequest;
 import fit.fashion_shop.dtos.responses.CartResponse;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 public interface CartService {
     CartResponse addToCart(Long userId, AddToCartRequest request);
     CartResponse getMyCart(Long userId);
+    CartResponse addToCartCustomized(Long userId, AddToCartCustomizedRequest request, List<MultipartFile> photoFiles);
 }
