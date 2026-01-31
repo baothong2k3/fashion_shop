@@ -175,4 +175,30 @@ public class CartServiceImpl implements CartService {
 
         return CartResponse.fromEntity(cartRepository.findById(cart.getId()).orElse(cart));
     }
+
+    @Override
+    @Transactional
+    public CartResponse removeFromCart(Long userId, Long cartItemId) {
+        // 1. Tìm giỏ hàng của User
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Giỏ hàng không tồn tại."));
+
+        // 2. Tìm Item cần xóa
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm trong giỏ không tồn tại."));
+
+        // 3. VALIDATE QUYỀN SỞ HỮU: Item này phải thuộc về Cart của User
+        if (!cartItem.getCart().getId().equals(cart.getId())) {
+            throw new OperationNotPermittedException("Bạn không có quyền xóa sản phẩm này khỏi giỏ hàng của người khác.");
+        }
+
+        // 4. Xóa khỏi List trong Entity Cart (để Hibernate đồng bộ cache)
+        cart.getItems().remove(cartItem);
+
+        // 5. Xóa khỏi Database
+        cartItemRepository.delete(cartItem);
+
+        // 6. Trả về Cart response mới nhất (đã tự động tính lại total)
+        return CartResponse.fromEntity(cart);
+    }
 }

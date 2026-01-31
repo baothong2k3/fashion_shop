@@ -20,4 +20,5 @@ public interface CartService {
     CartResponse addToCart(Long userId, AddToCartRequest request);
     CartResponse getMyCart(Long userId);
     CartResponse addToCartCustomized(Long userId, AddToCartCustomizedRequest request, List<MultipartFile> photoFiles);
+    CartResponse removeFromCart(Long userId, Long cartItemId);
 }

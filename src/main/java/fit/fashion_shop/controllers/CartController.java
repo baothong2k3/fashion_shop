@@ -115,4 +115,25 @@ public class CartController {
             throw new RuntimeException("Lỗi xử lý request: " + e.getMessage());
         }
     }
+
+    @DeleteMapping("/items/{cartItemId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<CartResponse>> removeFromCart(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long cartItemId,
+            HttpServletRequest request
+    ) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        CartResponse response = cartService.removeFromCart(user.getId(), cartItemId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Đã xóa sản phẩm khỏi giỏ hàng",
+                response,
+                request.getRequestURI()
+        ));
+    }
 }
