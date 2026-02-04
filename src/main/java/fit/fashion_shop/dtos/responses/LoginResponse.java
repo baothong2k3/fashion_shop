@@ -14,7 +14,5 @@ import fit.fashion_shop.enums.Role;
 public record LoginResponse(
         String accessToken,
         String refreshToken,
-        String email,
-        String fullName,
-        Role role
+        AuthUserResponse user
 ) {}

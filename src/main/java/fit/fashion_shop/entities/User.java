@@ -49,7 +49,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    private boolean enabled; // Tài khoản chỉ active sau khi verify OTP
+    private boolean enabled;
 
     // Quan hệ 1-N với Address
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)

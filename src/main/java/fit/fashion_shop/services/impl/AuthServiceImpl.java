@@ -10,6 +10,7 @@ package fit.fashion_shop.services.impl;/*
  */
 
 import fit.fashion_shop.dtos.requests.*;
+import fit.fashion_shop.dtos.responses.AuthUserResponse;
 import fit.fashion_shop.dtos.responses.LoginResponse;
 import fit.fashion_shop.entities.ImportantDate;
 import fit.fashion_shop.entities.User;
@@ -108,12 +109,18 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
+        // Tạo AuthUser
+        AuthUserResponse authUser = AuthUserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(user.getRole())
+                .build();
+
         return new LoginResponse(
                 accessToken,
                 refreshToken,
-                user.getEmail(),
-                user.getFullName(),
-                user.getRole()
+                authUser
         );
     }
 
@@ -192,12 +199,18 @@ public class AuthServiceImpl implements AuthService {
         String newAccessToken = jwtService.generateAccessToken(user);
         String newRefreshToken = jwtService.generateRefreshToken(user);
 
+        // Tạo AuthUser
+        AuthUserResponse authUser = AuthUserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(user.getRole())
+                .build();
+
         return new LoginResponse(
                 newAccessToken,
                 newRefreshToken,
-                user.getEmail(),
-                user.getFullName(),
-                user.getRole()
+                authUser
         );
     }
 }
