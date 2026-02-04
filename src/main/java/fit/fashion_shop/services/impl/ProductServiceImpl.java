@@ -1,0 +1,648 @@
+/*
+ * @ (#) ProductServiceImpl.java    1.0    14/01/2026
+ * Copyright (c) 2026 IUH. All rights reserved.
+ */
+package fit.fashion_shop.services.impl;/*
+ * @description:
+ * @author: Bao Thong
+ * @date: 14/01/2026
+ * @version: 1.0
+ */
+
+import fit.fashion_shop.dtos.requests.*;
+import fit.fashion_shop.dtos.responses.ProductDetailResponse;
+import fit.fashion_shop.dtos.responses.ProductResponse;
+import fit.fashion_shop.dtos.responses.ProductWithCustomizationResponse;
+import fit.fashion_shop.dtos.responses.ProductWithVariantsResponse;
+import fit.fashion_shop.entities.*;
+import fit.fashion_shop.enums.StepType;
+import fit.fashion_shop.exceptions.DuplicateResourceException;
+import fit.fashion_shop.exceptions.OperationNotPermittedException;
+import fit.fashion_shop.exceptions.ResourceNotFoundException;
+import fit.fashion_shop.helpers.ProductHelper;
+import fit.fashion_shop.repositories.*;
+import fit.fashion_shop.services.CloudinaryService;
+import fit.fashion_shop.services.ProductService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
+@Service
+@RequiredArgsConstructor
+public class ProductServiceImpl implements ProductService {
+
+    private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
+    private final CloudinaryService cloudinaryService;
+    private final ProductVariantRepository productVariantRepository;
+    private final AttributeRepository attributeRepository;
+    private final AttributeValueRepository attributeValueRepository;
+    private final ProductCustomizationConfigRepository customizationConfigRepository;
+    private final ObjectMapper objectMapper;
+    private final ProductHelper productHelper;
+
+    @Override
+    @Transactional
+    public ProductResponse createProduct(ProductRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles) {
+        // 1. Kiểm tra slug trùng lặp
+        if (productRepository.existsBySlug(request.slug())) {
+            throw new DuplicateResourceException("Slug sản phẩm '" + request.slug() + "' đã tồn tại.");
+        }
+        // 2. Kiểm tra danh mục tồn tại
+        Category category = categoryRepository.findById(request.categoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục"));
+
+        // 3. Upload thumbnail lên Cloudinary
+        String thumbnailUrl = cloudinaryService.uploadFile(thumbnailFile, "products/thumbnails");
+
+        // 4. Upload danh sách ảnh
+        List<String> imageUrls = new ArrayList<>();
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            for (MultipartFile file : imageFiles) {
+                if (file != null && !file.isEmpty()) {
+                    // Upload từng file và thêm URL vào list
+                    String url = cloudinaryService.uploadFile(file, "products/images");
+                    if (url != null) {
+                        imageUrls.add(url);
+                    }
+                }
+            }
+        }
+
+        // 5. Tạo Entity Product
+        Product product = Product.builder()
+                .name(request.name())
+                .slug(request.slug())
+                .description(request.description())
+                .price(request.price())
+                .salePrice(request.salePrice())
+                .discount(request.discount())
+                .stock(request.stock())
+                .thumbnail(thumbnailUrl)
+                .images(imageUrls)
+                .newProduct(request.newProduct() != null ? request.newProduct() : true)
+                .featured(request.featured() != null ? request.featured() : false)
+                .bestSeller(request.bestSeller() != null ? request.bestSeller() : false)
+                .customizable(request.customizable() != null ? request.customizable() : false)
+                .category(category)
+                .build();
+
+        // 6. Lưu và trả về DTO
+        return ProductResponse.fromEntity(productRepository.save(product));
+    }
+
+    @Override
+    @Transactional
+    public ProductWithVariantsResponse createProductVariants(Long productId, List<CreateVariantRequest> requests, List<MultipartFile> files) {
+        // 1. Kiểm tra sản phẩm gốc
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm"));
+
+        if (product.isCustomizable()) {
+            throw new OperationNotPermittedException("Sản phẩm customizable không hỗ trợ tạo variant này.");
+        }
+
+        // 2. Helper function: Tìm file trong list dựa trên tên
+        Function<String, MultipartFile> findFile = (filename) -> {
+            if (files == null || filename == null) return null;
+            return files.stream()
+                    .filter(f -> filename.equals(f.getOriginalFilename()))
+                    .findFirst()
+                    .orElse(null);
+        };
+
+        // 3. Duyệt request
+        for (CreateVariantRequest req : requests) {
+            if (productVariantRepository.existsBySku(req.sku())) {
+                throw new DuplicateResourceException("SKU " + req.sku() + " đã tồn tại");
+            }
+
+            // XỬ LÝ ẢNH THUMBNAIL CỦA VARIANT
+            String thumbnailFinal = req.thumbnail(); // Mặc định là string gửi lên
+            MultipartFile thumbFile = findFile.apply(req.thumbnail());
+            if (thumbFile != null) {
+                // Nếu tìm thấy file có tên trùng khớp, upload và lấy URL
+                thumbnailFinal = cloudinaryService.uploadFile(thumbFile, "products/variants");
+            }
+
+            ProductVariant variant = ProductVariant.builder()
+                    .product(product)
+                    .sku(req.sku())
+                    .priceOverride(req.priceOverride() != null ? req.priceOverride() : product.getPrice())
+                    .stock(req.stock())
+                    .thumbnail(thumbnailFinal) // Lưu URL thật
+                    .variantAttributes(new ArrayList<>())
+                    .build();
+
+            // XỬ LÝ THUỘC TÍNH (MÀU SẮC CÓ THỂ CÓ ẢNH)
+            if (req.attributes() != null) {
+                for (VariantAttributeRequest attrReq : req.attributes()) {
+                    Attribute attribute = attributeRepository.findByName(attrReq.attributeName())
+                            .orElseGet(() -> attributeRepository.save(Attribute.builder().name(attrReq.attributeName()).build()));
+
+                    // Xử lý ảnh của Attribute Value (ví dụ icon màu)
+                    String attrImageUrl = attrReq.imageUrl();
+                    MultipartFile attrFile = findFile.apply(attrReq.imageUrl());
+                    if (attrFile != null) {
+                        attrImageUrl = cloudinaryService.uploadFile(attrFile, "attributes");
+                    }
+
+                    // Tìm hoặc tạo AttributeValue (Cần final variable để dùng trong lambda)
+                    String finalAttrImageUrl = attrImageUrl;
+                    AttributeValue attributeValue = attributeValueRepository.findByValueAndAttributeId(attrReq.value(), attribute.getId())
+                            .orElseGet(() -> attributeValueRepository.save(
+                                    AttributeValue.builder()
+                                            .attribute(attribute)
+                                            .value(attrReq.value())
+                                            .hexCode(attrReq.hexCode())
+                                            .imageUrl(finalAttrImageUrl) // Lưu URL thật
+                                            .build()
+                            ));
+
+                    ProductVariantAttribute variantAttribute = ProductVariantAttribute.builder()
+                            .variant(variant)
+                            .attributeValue(attributeValue)
+                            .build();
+                    variant.getVariantAttributes().add(variantAttribute);
+                }
+            }
+            productVariantRepository.save(variant);
+        }
+
+        // 4. Lấy lại toàn bộ danh sách Variants (Cũ + Mới) của sản phẩm để trả về
+        List<ProductVariant> allVariants = productVariantRepository.findByProductId(productId);
+
+        return ProductWithVariantsResponse.fromEntity(product, allVariants);
+    }
+
+    @Override
+    @Transactional
+    public ProductWithVariantsResponse updateProductVariant(Long variantId, UpdateVariantRequest request, MultipartFile thumbnailFile, List<MultipartFile> attributeFiles) {
+        // 1. Tìm biến thể cần update
+        ProductVariant variant = productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể với ID: " + variantId));
+
+        // 2. Kiểm tra SKU
+        if (request.sku() != null && !request.sku().equals(variant.getSku())) {
+            if (productVariantRepository.existsBySku(request.sku())) {
+                throw new DuplicateResourceException("SKU " + request.sku() + " đã tồn tại");
+            }
+            variant.setSku(request.sku());
+        }
+
+        // 3. Xử lý Ảnh Thumbnail của biến thể
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            // Xóa ảnh cũ của biến thể trên Cloudinary nếu tồn tại
+            if (variant.getThumbnail() != null && !variant.getThumbnail().isBlank()) {
+                cloudinaryService.deleteFile(variant.getThumbnail());
+            }
+            String newThumbnailUrl = cloudinaryService.uploadFile(thumbnailFile, "products/variants");
+            variant.setThumbnail(newThumbnailUrl);
+        }
+
+        // 4. Cập nhật thông tin cơ bản
+        if (request.priceOverride() != null) {
+            variant.setPriceOverride(request.priceOverride());
+        }
+        if (request.stock() != null) {
+            variant.setStock(request.stock());
+        }
+
+        // 5. Cập nhật thuộc tính (Attributes)
+        if (request.attributes() != null) {
+            // Xóa các liên kết thuộc tính cũ (orphanRemoval = true sẽ tự xóa DB)
+            variant.getVariantAttributes().clear();
+
+            // Helper: Tìm file trong list dựa trên tên file gửi lên từ JSON
+            Function<String, MultipartFile> findFile = (filename) -> {
+                if (attributeFiles == null || filename == null) return null;
+                return attributeFiles.stream()
+                        .filter(f -> filename.equals(f.getOriginalFilename()))
+                        .findFirst()
+                        .orElse(null);
+            };
+
+            for (VariantAttributeRequest attrReq : request.attributes()) {
+                // Tìm hoặc tạo Attribute cha
+                Attribute attribute = attributeRepository.findByName(attrReq.attributeName())
+                        .orElseGet(() -> attributeRepository.save(Attribute.builder().name(attrReq.attributeName()).build()));
+
+                // Tìm AttributeValue hiện có hoặc tạo mới builder (chưa save)
+                AttributeValue attributeValue = attributeValueRepository.findByValueAndAttributeId(attrReq.value(), attribute.getId())
+                        .orElse(AttributeValue.builder()
+                                .attribute(attribute)
+                                .value(attrReq.value())
+                                .build());
+
+                // --- LOGIC XỬ LÝ ẢNH ATTRIBUTE ---
+
+                MultipartFile attrFile = findFile.apply(attrReq.imageUrl());
+
+                // Nếu có file mới được upload
+                if (attrFile != null) {
+                    // 1. Kiểm tra và xóa ảnh cũ trên Cloudinary (nếu có)
+                    String oldImageUrl = attributeValue.getImageUrl();
+                    if (oldImageUrl != null && !oldImageUrl.isBlank()) {
+                        cloudinaryService.deleteFile(oldImageUrl); // Gọi hàm deleteFile từ service
+                    }
+
+                    // 2. Upload ảnh mới và gán URL mới
+                    String newAttrImageUrl = cloudinaryService.uploadFile(attrFile, "attributes");
+                    attributeValue.setImageUrl(newAttrImageUrl);
+                }
+
+                // Cập nhật HexCode nếu có
+                if (attrReq.hexCode() != null && !attrReq.hexCode().isBlank()) {
+                    attributeValue.setHexCode(attrReq.hexCode());
+                }
+
+                // Lưu AttributeValue
+                attributeValue = attributeValueRepository.save(attributeValue);
+
+                // Liên kết với Variant
+                ProductVariantAttribute variantAttribute = ProductVariantAttribute.builder()
+                        .variant(variant)
+                        .attributeValue(attributeValue)
+                        .build();
+
+                variant.getVariantAttributes().add(variantAttribute);
+            }
+        }
+
+        // 6. Lưu biến thể
+        productVariantRepository.save(variant);
+
+        // 7. Trả về response
+        Product product = variant.getProduct();
+        List<ProductVariant> allVariants = productVariantRepository.findByProductId(product.getId());
+
+        return ProductWithVariantsResponse.fromEntity(product, allVariants);
+    }
+
+    @Override
+    @Transactional
+    public ProductWithVariantsResponse deleteProductVariant(Long variantId) {
+        // 1. Tìm biến thể cần xóa
+        ProductVariant variant = productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể với ID: " + variantId));
+
+        // 2. Lưu lại Product gốc để query lại sau khi xóa
+        Product product = variant.getProduct();
+        Long productId = product.getId();
+
+        // 3. Xóa ảnh Thumbnail trên Cloudinary (Nếu có)
+        // Lưu ý: Không xóa ảnh của AttributeValue vì ảnh đó có thể dùng chung cho các biến thể khác hoặc sản phẩm khác
+        if (variant.getThumbnail() != null && !variant.getThumbnail().isBlank()) {
+            cloudinaryService.deleteFile(variant.getThumbnail());
+        }
+
+        // 4. Xóa biến thể trong Database
+        // JPA sẽ tự động xóa các dòng trong bảng product_variant_attributes nhờ orphanRemoval=true trong Entity ProductVariant
+        productVariantRepository.delete(variant);
+
+        // 5. Flush để đảm bảo lệnh xóa được thực thi ngay lập tức trước khi query lại
+        productVariantRepository.flush();
+
+        // 6. Lấy lại danh sách biến thể còn lại của sản phẩm
+        List<ProductVariant> remainingVariants = productVariantRepository.findByProductId(productId);
+
+        // 7. Trả về response cấu trúc đầy đủ
+        return ProductWithVariantsResponse.fromEntity(product, remainingVariants);
+    }
+
+    @Override
+    @Transactional
+    public ProductWithCustomizationResponse saveCustomizationConfigs(Long productId, List<CustomizationConfigRequest> requests, List<MultipartFile> files) {
+        // 1. Tìm sản phẩm
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
+
+        if (!product.isCustomizable()) {
+            throw new OperationNotPermittedException("Sản phẩm này không được đánh dấu là Customizable.");
+        }
+
+        // Helper để tìm file trong list upload dựa vào tên (filename) được gửi từ client
+        Function<String, MultipartFile> findFile = (filename) -> {
+            if (files == null) return null;
+            return files.stream()
+                    .filter(f -> filename.equals(f.getOriginalFilename()))
+                    .findFirst()
+                    .orElse(null);
+        };
+
+        // 2. Duyệt qua các request cấu hình từng bước
+        for (CustomizationConfigRequest req : requests) {
+            ProductCustomizationConfig config = customizationConfigRepository
+                    .findByProductIdAndStepType(productId, req.stepType())
+                    .orElse(null);
+
+            // --- XỬ LÝ ẢNH CHO SHIRT VÀ BAG (UPLOAD & XÓA ẢNH CŨ) ---
+            if ((req.stepType() == StepType.SHIRT || req.stepType() == StepType.BAG) && req.configData() != null) {
+
+                // [Bước 1] Thu thập danh sách URL ảnh CŨ từ database (nếu có)
+                java.util.Set<String> oldImageUrls = new java.util.HashSet<>();
+                if (config != null && config.getConfigJson() != null) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> oldData = objectMapper.readValue(config.getConfigJson(), Map.class);
+                        if (oldData.containsKey("colors") && oldData.get("colors") instanceof List) {
+                            @SuppressWarnings("unchecked")
+                            List<Map<String, Object>> oldColors = (List<Map<String, Object>>) oldData.get("colors");
+                            for (Map<String, Object> c : oldColors) {
+                                Object imgObj = c.get("image");
+                                if (imgObj instanceof String && ((String) imgObj).startsWith("http")) {
+                                    oldImageUrls.add((String) imgObj);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Bỏ qua lỗi parse JSON cũ, coi như không có ảnh cũ để xóa
+                    }
+                }
+
+                // [Bước 2] Xử lý ảnh MỚI và xác định danh sách ảnh cần GIỮ LẠI
+                java.util.Set<String> keptImageUrls = new java.util.HashSet<>();
+                Map<String, Object> data = req.configData();
+
+                if (data.containsKey("colors") && data.get("colors") instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> colors = (List<Map<String, Object>>) data.get("colors");
+
+                    // Xác định folder lưu trữ trên Cloudinary
+                    String uploadFolder = (req.stepType() == StepType.SHIRT) ? "customization/shirts" : "customization/bags";
+
+                    for (Map<String, Object> color : colors) {
+                        String imgRef = (String) color.get("image");
+
+                        if (imgRef != null) {
+                            // Trường hợp 1: Là tên file -> Cần upload mới
+                            if (!imgRef.startsWith("http")) {
+                                MultipartFile fileToUpload = findFile.apply(imgRef);
+                                if (fileToUpload != null) {
+                                    // Upload lên Cloudinary
+                                    String uploadedUrl = cloudinaryService.uploadFile(fileToUpload, uploadFolder);
+                                    // Cập nhật lại giá trị "image" trong Map thành URL thực tế
+                                    color.put("image", uploadedUrl);
+                                    // Thêm vào danh sách giữ lại
+                                    keptImageUrls.add(uploadedUrl);
+                                }
+                            }
+                            // Trường hợp 2: Đã là URL (giữ nguyên ảnh cũ) -> Thêm vào danh sách giữ lại
+                            else {
+                                keptImageUrls.add(imgRef);
+                            }
+                        }
+                    }
+                }
+
+                // [Bước 3] Xóa các ảnh cũ KHÔNG còn nằm trong danh sách giữ lại
+                // (Old - Kept = Deleted)
+                oldImageUrls.removeAll(keptImageUrls);
+                for (String urlToDelete : oldImageUrls) {
+                    // Gọi service xóa ảnh trên Cloudinary
+                    cloudinaryService.deleteFile(urlToDelete);
+                }
+            }
+            // ------------------------------------------
+
+            if (config == null) {
+                // Nếu chưa có config cho bước này -> Tạo mới
+                config = ProductCustomizationConfig.builder()
+                        .product(product)
+                        .stepType(req.stepType())
+                        .isEnabled(req.enabled() != null ? req.enabled() : true)
+                        .extraPrice(req.extraPrice() != null ? req.extraPrice() : 0.0)
+                        .build();
+            } else {
+                // Nếu đã có -> Cập nhật các trường cơ bản
+                if (req.enabled() != null) config.setEnabled(req.enabled());
+                if (req.extraPrice() != null) config.setExtraPrice(req.extraPrice());
+            }
+
+            // Lưu dữ liệu cấu hình (Map) thành chuỗi JSON vào database
+            if (req.configData() != null) {
+                try {
+                    String jsonString = objectMapper.writeValueAsString(req.configData());
+                    config.setConfigJson(jsonString);
+                } catch (Exception e) {
+                    throw new RuntimeException("Lỗi khi chuyển đổi dữ liệu config sang JSON", e);
+                }
+            }
+
+            // Lưu xuống DB
+            customizationConfigRepository.save(config);
+        }
+
+        // 3. Trả về kết quả mới nhất
+        List<ProductCustomizationConfig> allConfigs = customizationConfigRepository.findByProductId(productId);
+        return ProductWithCustomizationResponse.fromEntity(product, allConfigs, this.objectMapper);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCustomizationConfig(Long productId, StepType stepType) {
+        // 1. Kiểm tra sản phẩm tồn tại (để báo lỗi rõ ràng nếu sai ID)
+        if (!productRepository.existsById(productId)) {
+            throw new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId);
+        }
+
+        // 2. Tìm config cần xóa
+        ProductCustomizationConfig config = customizationConfigRepository
+                .findByProductIdAndStepType(productId, stepType)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cấu hình cho bước " + stepType + " của sản phẩm này."));
+
+        // 3. Thực hiện xóa
+        customizationConfigRepository.delete(config);
+    }
+
+    @Override
+    public Page<ProductResponse> getPublicProducts(
+            Boolean newProduct,
+            Boolean featured,
+            Boolean bestSeller,
+            Boolean customizable,
+            String sort,
+            int page,
+            int size) {
+
+        // 1. Xử lý Sắp xếp (Sort)
+        Sort sortObj;
+        if (sort != null) {
+            switch (sort) {
+                case "price_asc" -> sortObj = Sort.by("price").ascending();
+                case "price_desc" -> sortObj = Sort.by("price").descending();
+                case "discount_desc" -> sortObj = Sort.by("discount").descending();
+                default -> sortObj = Sort.by("createdAt").descending(); // Mặc định: Mới nhất lên đầu
+            }
+        } else {
+            sortObj = Sort.by("createdAt").descending();
+        }
+
+        // 2. Tạo Pageable
+        Pageable pageable = PageRequest.of(page, size, sortObj);
+
+        // 3. Tạo Specification (Bộ lọc động)
+        Specification<Product> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (newProduct != null) {
+                predicates.add(cb.equal(root.get("newProduct"), newProduct));
+            }
+            if (featured != null) {
+                predicates.add(cb.equal(root.get("featured"), featured));
+            }
+            if (bestSeller != null) {
+                predicates.add(cb.equal(root.get("bestSeller"), bestSeller));
+            }
+            if (customizable != null) {
+                predicates.add(cb.equal(root.get("customizable"), customizable));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // 4. Truy vấn và map sang DTO
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+
+        return productPage.map(ProductResponse::fromEntity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductDetailResponse getProductDetail(Long id) {
+        // 1. Tìm sản phẩm
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
+
+        return productHelper.buildProductDetailResponse(product);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ProductDetailResponse getProductDetailBySlug(String slug) {
+        // 1. Tìm sản phẩm theo slug
+        Product product = productRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với slug: " + slug));
+
+        return productHelper.buildProductDetailResponse(product);
+    }
+
+    @Override
+    @Transactional
+    public ProductResponse updateProduct(Long id, ProductUpdateRequest request, MultipartFile thumbnailFile, List<MultipartFile> imageFiles) {
+        // 1. Tìm sản phẩm cần update
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + id));
+
+        // 2. Cập nhật Slug (nếu có thay đổi)
+        if (request.slug() != null && !request.slug().isBlank()) {
+            String newSlug = request.slug().trim();
+            if (!newSlug.equals(product.getSlug())) {
+                // Kiểm tra trùng lặp với sản phẩm KHÁC
+                if (productRepository.existsBySlug(newSlug)) {
+                    throw new DuplicateResourceException("Slug sản phẩm '" + newSlug + "' đã tồn tại.");
+                }
+                product.setSlug(newSlug);
+            }
+        }
+
+        // 3. Cập nhật Danh mục (Category)
+        if (request.categoryId() != null) {
+            if (!request.categoryId().equals(product.getCategory().getId())) {
+                Category newCategory = categoryRepository.findById(request.categoryId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy danh mục với ID: " + request.categoryId()));
+                product.setCategory(newCategory);
+            }
+        }
+
+        // 4. Xử lý Thumbnail (Nếu có upload file mới)
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            // Xóa ảnh cũ trên Cloudinary
+            if (product.getThumbnail() != null) {
+                cloudinaryService.deleteFile(product.getThumbnail());
+            }
+            // Upload ảnh mới
+            String newThumbnailUrl = cloudinaryService.uploadFile(thumbnailFile, "products/thumbnails");
+            product.setThumbnail(newThumbnailUrl);
+        }
+
+        // 5. Xử lý danh sách ảnh phụ (Images) (Nếu có upload list mới)
+        // Logic: Nếu gửi list ảnh mới -> Xóa HẾT ảnh cũ trên Cloud và thay bằng list mới.
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            // Xóa toàn bộ ảnh cũ trên Cloudinary
+            if (product.getImages() != null) {
+                for (String oldImageUrl : product.getImages()) {
+                    cloudinaryService.deleteFile(oldImageUrl);
+                }
+                product.getImages().clear(); // Xóa list trong DB
+            }
+
+            // Upload list ảnh mới
+            List<String> newImageUrls = new ArrayList<>();
+            for (MultipartFile file : imageFiles) {
+                if (file != null && !file.isEmpty()) {
+                    String url = cloudinaryService.uploadFile(file, "products/images");
+                    if (url != null) {
+                        newImageUrls.add(url);
+                    }
+                }
+            }
+            product.setImages(newImageUrls);
+        }
+
+        // 6. Partial Update các trường thông tin cơ bản
+        if (request.name() != null && !request.name().isBlank()) product.setName(request.name());
+        if (request.description() != null) product.setDescription(request.description());
+        if (request.price() != null) product.setPrice(request.price());
+        if (request.salePrice() != null) product.setSalePrice(request.salePrice());
+        if (request.discount() != null) product.setDiscount(request.discount());
+        if (request.stock() != null) product.setStock(request.stock());
+        if (request.newProduct() != null) product.setNewProduct(request.newProduct());
+        if (request.featured() != null) product.setFeatured(request.featured());
+        if (request.bestSeller() != null) product.setBestSeller(request.bestSeller());
+
+        // Xử lý ràng buộc khi thay đổi cờ Customizable
+        if (request.customizable() != null) {
+            boolean isCurrentlyCustomizable = product.isCustomizable();
+            boolean newCustomizableState = request.customizable();
+
+            // Chỉ xử lý nếu có sự thay đổi trạng thái (Normal <-> Customizable)
+            if (isCurrentlyCustomizable != newCustomizableState) {
+
+                // Kiểm tra 1: Nếu sản phẩm đang có Variants (dù là SP thường hay lỗi dữ liệu)
+                // Truy cập vào list variants sẽ trigger lazy load trong transaction
+                if (product.getVariants() != null && !product.getVariants().isEmpty()) {
+                    throw new OperationNotPermittedException(
+                            "Không thể thay đổi loại sản phẩm vì đang tồn tại Biến thể (Variants). Vui lòng xóa tất cả biến thể trước khi chuyển đổi."
+                    );
+                }
+
+                // Kiểm tra 2: Nếu sản phẩm đang có Customization Configs
+                if (product.getCustomizationConfigs() != null && !product.getCustomizationConfigs().isEmpty()) {
+                    throw new OperationNotPermittedException(
+                            "Không thể thay đổi loại sản phẩm vì đang tồn tại Cấu hình thiết kế (Customization Configs). Vui lòng xóa cấu hình trước khi chuyển đổi."
+                    );
+                }
+
+                // Nếu sạch dữ liệu con thì mới cho phép đổi
+                product.setCustomizable(newCustomizableState);
+            }
+        }
+
+        // 7. Lưu và trả về kết quả
+        return ProductResponse.fromEntity(productRepository.save(product));
+    }
+}

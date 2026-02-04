@@ -1,0 +1,100 @@
+/*
+ * @ (#) CategoryController.java    1.0    13/01/2026
+ * Copyright (c) 2026 IUH. All rights reserved.
+ */
+package fit.fashion_shop.controllers;/*
+ * @description:
+ * @author: Bao Thong
+ * @date: 13/01/2026
+ * @version: 1.0
+ */
+
+import fit.fashion_shop.dtos.ApiResponse;
+import fit.fashion_shop.dtos.requests.CategoryRequest;
+import fit.fashion_shop.dtos.requests.CategoryUpdateRequest;
+import fit.fashion_shop.dtos.responses.CategoryResponse;
+import fit.fashion_shop.services.CategoryService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin/categories")
+@RequiredArgsConstructor
+public class CategoryController {
+
+    private final CategoryService categoryService;
+
+    @PostMapping(consumes = {"multipart/form-data"})
+    @PreAuthorize("hasRole('ADMIN')") // Chỉ ADMIN mới có quyền truy cập
+    public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(
+            @Valid @ModelAttribute CategoryRequest request,
+            HttpServletRequest httpReq) {
+
+        CategoryResponse response = categoryService.createCategory(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(
+                        HttpStatus.CREATED.value(),
+                        "Tạo danh mục thành công",
+                        response,
+                        httpReq.getRequestURI()
+                ));
+    }
+
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CategoryResponse>> updateCategory(
+            @PathVariable Long id,
+            @Valid @ModelAttribute CategoryUpdateRequest request,
+            HttpServletRequest httpReq) {
+
+        CategoryResponse response = categoryService.updateCategory(id, request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Cập nhật danh mục thành công",
+                response,
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteCategory(
+            @PathVariable Long id,
+            HttpServletRequest httpReq) {
+
+        categoryService.deleteCategory(id);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Xóa danh mục thành công",
+                httpReq.getRequestURI()
+        ));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getAdminCategories(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long parentId,
+            @RequestParam(required = false) Boolean isActive,
+            HttpServletRequest httpReq) {
+
+        List<CategoryResponse> list = categoryService.getAllCategoriesForAdmin(keyword, parentId, isActive);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                HttpStatus.OK.value(),
+                "Lấy danh sách danh mục cho admin thành công",
+                list,
+                httpReq.getRequestURI()
+        ));
+    }
+}
